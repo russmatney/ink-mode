@@ -6,8 +6,7 @@ Right now, =ink-mode= includes basic syntax highlighting and a command to playte
 
 ** Installing
 
-Add =ink-mode.el= to your load-path then add ~(require 'ink-mode)~ to your =init.el=. If you're a [[https://github.com/jwiegley/use-package][use-package]] user, add this instead:
-
+Add =ink-mode.el= to your load-path then add ~(require 'ink-mode)~ to your =init.el=. If you're a [[https://github.com/jwiegley/use-package][use-package]] user, add this instead of requiring ink-mode:
 #+BEGIN_SRC emacs-lisp
   (use-package ink-mode
     :mode "\\.ink\\'")
