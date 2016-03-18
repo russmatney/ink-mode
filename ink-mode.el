@@ -4,7 +4,7 @@
 
 (defvar ink-mode-map
   (let ((map (make-keymap)))
-    (define-key map (kbd "C-j") 'newline-and-indent)
+    (define-key map (kbd "C-c C-c") 'ink-play)
     map)
   "Keymap for ink major mode")
 
@@ -22,21 +22,47 @@
 
 (defvar ink-font-lock-keywords
   `(
+    ;; Knots, functions and stitches
     ("^=+ *[[:word:]_]+\\(?:(.*)\\)? *=*" .
-     font-lock-function-name-face) ;; Knots, functions and stitches
+     font-lock-function-name-face)
+    ;; Diverts and threads
     ("\\(?:->\\|<-\\) *[[:word:]_.]+\\(?:(.*)\\)? *$" .
-     font-lock-function-name-face) ;; Diverts and threads
+     font-lock-function-name-face)
+    ;; Labels
+    (,(rx bol (0+ whitespace)
+          (1+ (or " " "*" "+" "-"))
+          (group "(" (1+ not-newline) ")"))
+     1 font-lock-function-name-face)
+    ;; Keywords at beginning of line
     (,(rx bol (or "VAR" "CONST" "INCLUDE") word-end) .
-     font-lock-keyword-face) ;; Keywords
+     font-lock-keyword-face)
+    ;; Vars/constants
     ("^\\(?:VAR\\|CONST\\) +\\([[:word:]_]+\\)" 1
-     font-lock-variable-name-face) ;; Vars/constants
-    (,(rx bol (zero-or-more whitespace)
-          (one-or-more (or " " "*" "+"))
-          (group "{" (one-or-more not-newline) "}"))
-     1 font-lock-type-face) ;; Conditions
-    (,(rx bol (zero-or-more whitespace)
-          "~" (one-or-more not-newline)) . font-lock-type-face)
-    ))
+     font-lock-variable-name-face)
+    ;; Conditions
+    (,(rx bol (0+ whitespace)
+          (1+ (or " " "*" "+"))
+          (group "{" (1+ not-newline) "}"))
+     1 font-lock-type-face)
+    ;; Code lines
+    (,(rx bol (0+ whitespace)
+          "~" (1+ not-newline)) . font-lock-type-face)))
+
+(defvar ink-inklecate-path (executable-find "inklecate")
+  "The path to the Inklecate program")
+
+(defun ink-play ()
+  "Play the current ink buffer"
+  (interactive)
+  (let ((buffer (comint-check-proc "Ink")))
+    (pop-to-buffer-same-window
+     (if (or buffer (comint-check-proc (current-buffer)))
+         (get-buffer-create (or buffer "*Ink*"))
+       (current-buffer)))
+    (unless buffer
+      (switch-to-buffer-other-window
+       (apply 'make-comint-in-buffer "Ink" buffer
+              ink-inklecate-path nil `("-p" ,(buffer-file-name)))))))
 
 (define-derived-mode ink-mode
     prog-mode "Ink"

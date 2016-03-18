@@ -2,7 +2,7 @@
 
 =ink-mode= is intended to be an Emacs major mode for [[http://www.inklestudios.com/ink/][Ink]]. Ink is an open-source scripting language for writing interactive fiction, and is developed by [[http://www.inklestudios.com/ink/][Inkle Studios]].
 
-=ink-mode= includes basic syntax highlighting and commands to communicate with the =inklecate= command line interface.
+Right now, =ink-mode= includes basic syntax highlighting and a command to playtest the game from Emacs: =C-c C-c=. 
 
 ** Installing
 
