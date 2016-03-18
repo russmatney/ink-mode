@@ -1,0 +1,14 @@
+* =ink-mode.el=
+
+=ink-mode= is intended to be an Emacs major mode for [[http://www.inklestudios.com/ink/][Ink]]. Ink is an open-source scripting language for writing interactive fiction, and is developed by [[http://www.inklestudios.com/ink/][Inkle Studios]].
+
+=ink-mode= includes basic syntax highlighting and commands to communicate with the =inklecate= command line interface.
+
+** Installing
+
+Add =ink-mode.el= to your load-path then add ~(require 'ink-mode)~ to your =init.el=. If you're a [[https://github.com/jwiegley/use-package][use-package]] user, add this instead:
+
+#+BEGIN_SRC emacs-lisp
+  (use-package ink-mode
+    :mode "\\.ink\\'")
+#+END_SRC
