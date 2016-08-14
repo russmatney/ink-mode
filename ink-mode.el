@@ -1,3 +1,21 @@
+;;; ink-mode.el --- Major mode for writing interactive fiction in Ink
+
+;; Copyright (C) 2016 Erik Sjöstrand
+;; MIT License
+
+;; Author: Erik Sjöstrand
+;; URL: http://github.com/Kungsgeten/ink-mode
+;; Version: 0.1
+;; Keywords: languages
+;; Package-Requires: ()
+
+;;; Commentary:
+
+;; `ink-mode' provides basic syntax highlightning for the Ink scripting
+;; language, developed by Inkle Studios.  There's also a command `ink-play' to
+;; playtest your story from Emacs (bound to C-c C-c by default).
+
+;;; Code:
 (require 'rx)
 
 (defvar ink-mode-hook nil)
@@ -6,7 +24,7 @@
   (let ((map (make-keymap)))
     (define-key map (kbd "C-c C-c") 'ink-play)
     map)
-  "Keymap for ink major mode")
+  "Keymap for ink major mode.")
 
 (defconst ink-mode-syntax-table
   (let ((st (make-syntax-table)))
@@ -18,7 +36,7 @@
 
 (defface ink-condition-face
   '((t :inherit font-lock-type-face))
-  "Face for conditions in ink-mode")
+  "Face for conditions in ink-mode.")
 
 (defvar ink-font-lock-keywords
   `(
@@ -49,10 +67,10 @@
           "~" (1+ not-newline)) . font-lock-type-face)))
 
 (defvar ink-inklecate-path (executable-find "inklecate")
-  "The path to the Inklecate program")
+  "The path to the Inklecate executable.")
 
 (defun ink-play ()
-  "Play the current ink buffer"
+  "Play the current ink buffer."
   (interactive)
   (let ((buffer (comint-check-proc "Ink")))
     (pop-to-buffer-same-window
@@ -65,9 +83,9 @@
               ink-inklecate-path nil `("-p" ,(buffer-file-name)))))))
 
 (define-derived-mode ink-mode
-    prog-mode "Ink"
+  prog-mode "Ink"
   "Major mode for editing interactive fiction using the Ink
-  scripting language"
+  scripting language."
   :syntax-table ink-mode-syntax-table
   (setq-local comment-start "// ")
   (setq-local comment-start-skip "//+ *")
@@ -81,3 +99,4 @@
 (add-to-list 'auto-mode-alist '("\\.ink\\'" . ink-mode))
 
 (provide 'ink-mode)
+;;; ink-mode.el ends here
