@@ -18,6 +18,10 @@
 ;;; Code:
 (require 'rx)
 
+(defgroup ink nil
+  "Major mode for writing interactive fiction in Ink."
+  :group 'languages)
+
 (defvar ink-mode-hook nil)
 
 (defvar ink-mode-map
