@@ -7,7 +7,7 @@
 ;; URL: http://github.com/Kungsgeten/ink-mode
 ;; Version: 0.1
 ;; Keywords: languages
-;; Package-Requires: ()
+;; Package-Requires: ((emacs "24.3"))
 
 ;;; Commentary:
 
@@ -82,6 +82,7 @@
        (apply 'make-comint-in-buffer "Ink" buffer
               ink-inklecate-path nil `("-p" ,(buffer-file-name)))))))
 
+;;;###autoload
 (define-derived-mode ink-mode
   prog-mode "Ink"
   "Major mode for editing interactive fiction using the Ink
