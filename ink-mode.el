@@ -41,37 +41,95 @@
     (modify-syntax-entry ?\" "w" st)
     st))
 
-(defface ink-condition-face
-  '((t :inherit font-lock-type-face))
-  "Face for conditions in ink-mode.")
+(defface ink-shadow-face
+  '((t (:inherit shadow)))
+  "Face for Ink headers and glue."
+  :group 'ink-faces)
+
+(defface ink-knot-face
+  '((t (:inherit font-lock-string-face)))
+  "Face for Ink knots: == * ==."
+  :group 'ink-faces)
+
+(defface ink-stitch-face
+  '((t (:inherit 'ink-knot-face)))
+  "Face for Ink stitches: = *."
+  :group 'ink-faces)
+
+(defface ink-tag-face
+  '((t (:inherit font-lock-doc-face)))
+  "Face for Ink tags: ()."
+  :group 'ink-faces)
+
+(defface ink-bracket-face
+  '((t (:inherit italic)))
+  "Face for Ink brackets: []."
+  :group 'ink-faces)
 
 (defvar ink-font-lock-keywords
   `(
-    ;; Knots, functions and stitches
-    ("^=+ *[[:word:]_]+\\(?:(.*)\\)? *=*" .
-     font-lock-function-name-face)
-    ;; Diverts and threads
-    ("\\(?:->\\|<-\\) *[[:word:]_.]+\\(?:(.*)\\)? *$" .
-     font-lock-function-name-face)
+    ;; TODO-style comments
+    ("^\\s-*\\(TODO.*\\)" . font-lock-comment-face)
+
+    ;; Knots
+    ;; ^\s*(={2,})\s*(function)?\s*(\w+)\s*(\([^)]*\))?\s*(={1,})?
+    ("^\\s-*\\(=\\{2,\\}\\)\\s-*\\(\\(?:function\\)?\\)\\s-*\\([[:word:]_]+\\)\\s-*\\(\\(?:([^)]*)\\)?\\)\\s-*\\(\\(?:=\\{1,\\}\\)?\\)"
+     (1 'ink-shadow-face)
+     (2 font-lock-keyword-face)
+     (3 'ink-knot-face)
+     (4 font-lock-variable-name-face)
+     (5 'ink-shadow-face))
+
+    ;; Stitches
+    ;; ^\s*(=)\s*(\w+)\s*(\([^)\n]*\))?\s*$
+    ("^\\s-*\\(=\\)\\s-*\\([[:word:]_]+\\)\\s-*\\(\\(:?([^)\n]*)\\)?\\)$"
+     (1 'ink-shadow-face)
+     (2 'ink-stitch-face)
+     (3 font-lock-variable-name-face))
+
+    ;; Diverts, threads and tunnels
+    ("\\(\\(?:->\\|<-\\)+\\)\\s-*\\([[:word:]_]*\\)"
+     (1 font-lock-builtin-face)
+     (2 'ink-knot-face))
+
     ;; Labels
     (,(rx bol (0+ whitespace)
-          (1+ (or " " "*" "+" "-"))
+          (1+ (or whitespace "*" "+" "-"))
           (group "(" (1+ not-newline) ")"))
-     1 font-lock-function-name-face)
+     1 font-lock-variable-name-face)
+
+    ;; Choices
+    ("^\\s-*\\([*+]\\s-*\\)+" . font-lock-type-face)
+
+    ;; Ties
+    ("^\\s-*\\(\\(?:\\s-*-\\)+\\)\\(?:[^>]\\|$\\)" 1 font-lock-type-face)
+
     ;; Keywords at beginning of line
-    (,(rx bol (or "VAR" "CONST" "INCLUDE") word-end) .
-     font-lock-keyword-face)
-    ;; Vars/constants
-    ("^\\(?:VAR\\|CONST\\) +\\([[:word:]_]+\\)" 1
+    ("^\\s-*\\(VAR\\|CONST\\|INCLUDE\\|LIST\\)" . font-lock-keyword-face)
+
+    ;; Vars, constants and lists
+    ("^\\s-*\\(?:VAR\\|CONST\\|LIST\\)\\s-+\\([[:word:]_]+\\)" 1
      font-lock-variable-name-face)
+
     ;; Conditions
-    (,(rx bol (0+ whitespace)
-          (1+ (or " " "*" "+"))
-          (group "{" (1+ not-newline) "}"))
-     1 font-lock-type-face)
+    ("\\({.*?:\\).*?}" 1 font-lock-constant-face)
+    ("^[[:space:]*+]+\\({.*?}\\)" 1 font-lock-constant-face)
+
+    ;; Alternatives
+    ("\\(?:^\\|[^\\\\]\\)\\([{|}]+\\)" 1 font-lock-constant-face)
+
     ;; Code lines
     (,(rx bol (0+ whitespace)
-          "~" (1+ not-newline)) . font-lock-type-face)))
+          (group "~") (1+ not-newline)) . font-lock-type-face)
+
+    ;; Tags
+    ("\\(?:^\\|[^\\\\]\\)\\(#.*\\)$" 1 'ink-tag-face)
+
+    ;; Glue
+    ("\\(^\\s-*<>\\|<>\\s-*$\\)" . 'ink-shadow-face)
+
+    ;; Brackets
+    ("^\\(?:\\s-*[*+]\\).*\\(\\[.*\\]\\)" 1 'ink-bracket-face)))
 
 (defvar ink-inklecate-path (executable-find "inklecate")
   "The path to the Inklecate executable.")
