@@ -34,9 +34,11 @@
 (defconst ink-mode-syntax-table
   (let ((st (make-syntax-table)))
     ;; // starts a comment
-    (modify-syntax-entry ?/ ". 12" st)
+    (modify-syntax-entry ?/ ". 124b" st)
+    (modify-syntax-entry ?* ". 23" st)
     ;; End of line ends a comment
-    (modify-syntax-entry ?\n ">" st)
+    (modify-syntax-entry ?\n "> b" st)
+    (modify-syntax-entry ?\" "w" st)
     st))
 
 (defface ink-condition-face
@@ -94,7 +96,7 @@
   scripting language."
   :syntax-table ink-mode-syntax-table
   (setq-local comment-start "// ")
-  (setq-local comment-start-skip "//+ *")
+  (setq-local comment-start-skip "//+\\s-*")
   (setq-local comment-use-syntax t)
   (setq-local comment-end "")
   (setq-local comment-auto-fill-only-comments t)
