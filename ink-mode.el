@@ -89,7 +89,7 @@
 
 ;;;###autoload
 (define-derived-mode ink-mode
-  prog-mode "Ink"
+  text-mode "Ink"
   "Major mode for editing interactive fiction using the Ink
   scripting language."
   :syntax-table ink-mode-syntax-table
