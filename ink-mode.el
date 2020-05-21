@@ -17,6 +17,7 @@
 
 ;;; Code:
 (require 'rx)
+(require 'comint)
 
 (defgroup ink nil
   "Major mode for writing interactive fiction in Ink."
