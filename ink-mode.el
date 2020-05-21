@@ -1,4 +1,4 @@
-;;; ink-mode.el --- Major mode for writing interactive fiction in Ink
+;;; ink-mode.el --- Major mode for writing interactive fiction in Ink -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2016 Erik Sjöstrand
 ;; MIT License
