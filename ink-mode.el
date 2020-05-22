@@ -43,6 +43,9 @@
     (modify-syntax-entry ?\" "w" st)
     st))
 
+
+;;; Faces =======================================================
+
 (defface ink-shadow-face
   '((t (:inherit shadow)))
   "Face for Ink headers and glue."
@@ -67,6 +70,9 @@
   '((t (:inherit italic)))
   "Face for Ink brackets: []."
   :group 'ink-faces)
+
+
+;;; Highlighting =======================================================
 
 (defvar ink-font-lock-keywords
   `(
@@ -132,6 +138,9 @@
 
     ;; Brackets
     ("^\\(?:\\s-*[*+]\\).*\\(\\[.*\\]\\)" 1 'ink-bracket-face)))
+
+
+;;; Indentation =======================================================
 
 (defun ink-goto-first-choice-char ()
   "Go to the first text char following a choice on the line at point."
@@ -227,6 +236,9 @@
       0)))
 
 (defvar ink-inklecate-path (executable-find "inklecate")
+
+;;; Ink-play =======================================================
+
   "The path to the Inklecate executable.")
 
 (defun ink-play ()
@@ -241,6 +253,9 @@
       (switch-to-buffer-other-window
        (apply 'make-comint-in-buffer "Ink" buffer
               ink-inklecate-path nil `("-p" ,(buffer-file-name)))))))
+
+
+;;; Outline  ==========================================================
 
 ;;;###autoload
 (define-derived-mode ink-mode
