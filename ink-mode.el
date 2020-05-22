@@ -264,11 +264,13 @@ Group 3 matches the closing whitespace and equal signs of a heading.")
         cur-indent
       0)))
 
-(defvar ink-inklecate-path (executable-find "inklecate")
 
 ;;; Ink-play =======================================================
 
-  "The path to the Inklecate executable.")
+(defcustom ink-inklecate-path (executable-find "inklecate")
+  "The path to the Inklecate executable."
+  :group 'ink
+  :type '(file))
 
 (defun ink-play ()
   "Play the current ink buffer."
