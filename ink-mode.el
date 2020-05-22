@@ -1,9 +1,10 @@
 ;;; ink-mode.el --- Major mode for writing interactive fiction in Ink -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016 Erik Sjöstrand
+;; Copyright (C) 2016-2020 Erik Sjöstrand, Damien Picard, and
+;; ink-mode contributors (see the commit log for details).
 ;; MIT License
 
-;; Author: Erik Sjöstrand
+;; Author: Erik Sjöstrand, Damien Picard
 ;; URL: http://github.com/Kungsgeten/ink-mode
 ;; Version: 0.2
 ;; Keywords: languages, wp, hypermedia
