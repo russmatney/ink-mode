@@ -131,6 +131,82 @@
     ;; Brackets
     ("^\\(?:\\s-*[*+]\\).*\\(\\[.*\\]\\)" 1 'ink-bracket-face)))
 
+(defun ink-goto-first-choice-char ()
+  "Go to the first text char following a choice on the line at point."
+  (let ((found-match t))
+    (setq found-match
+          (re-search-forward
+           "\\(\\s-*\\([*+]\\|-[^>]\\|-$\\)\\)+\\s-*\\([^\\1]\\|$\\)"
+           (line-end-position) t))
+    found-match))
+
+(defun ink-count-choices ()
+  "Return number of choices or ties in line."
+  (interactive)
+  (let ((choices 0))
+    (save-excursion
+      (beginning-of-line)
+      (if (ink-goto-first-choice-char)
+          (setq choices (count-matches "\\(\\s-*[*+]\\|-[^>]\\|-$\\)" (line-beginning-position) (point)))))
+    choices))
+
+(defun ink-indent-line ()
+  "Indent current line of Ink code."
+  (save-excursion
+    (indent-line-to (ink-calculate-indentation))))
+
+(defun ink-calculate-indentation (&optional direction-up)
+  "Find indent level at point."
+  (beginning-of-line)
+  (let ((not-indented t) cur-indent)
+    (cond ((or (bobp) (looking-at "^\\s-*="))
+           ;; First line of buffer or knot
+           (setq not-indented nil))
+          ((and (looking-at "^\\s-*[*+]")
+                (not (looking-at ".*?\\*/")))
+           ;; Choice * +
+           (setq cur-indent (* (ink-count-choices) tab-width))
+           (setq not-indented nil)
+           (ink-goto-first-choice-char))
+          ((looking-at "^\\(:?\\(\\s-*-\\)+\\)\\(:?[^>-*]+\\|$\\)")
+           ;; Tie -
+           (setq cur-indent (* (- (ink-count-choices) 1) tab-width))
+           (setq not-indented nil))
+          (not-indented
+           ;; if not choice, tie, knot or first line
+           (save-excursion
+             (if (looking-at "^\\s-*\\(TODO\\|//\\)")
+                 (let ((not-comment-not-found t))
+                   ;; Comment // or TODO: look down until we find
+                   ;; something which isn't a comment, then find
+                   ;; _that_ indent
+                   (while (and (not direction-up) not-comment-not-found)
+                     (forward-line 1)
+                     (if (looking-at "^\\s-*\\(TODO\\|//\\)")
+                         ()
+                       (progn
+                         (setq cur-indent (ink-calculate-indentation nil))
+                         (setq not-indented nil)
+                         (setq not-comment-not-found nil)))))
+               (while not-indented
+                 ;; Go up until we find something
+                 (forward-line -1)
+                 (cond
+                  ((looking-at "^\\s-*[*+]")
+                   ;; Choice * +
+                   (setq cur-indent (* (ink-count-choices) 2 tab-width))
+                   (setq not-indented nil))
+                  ((looking-at "^\\s-*\\(-[^>]\\|-$\\)")
+                   ;; Tie -
+                   (setq cur-indent (* (- (* (ink-count-choices) 2) 1) tab-width))
+                   (setq not-indented nil))
+                  ((or (bobp) (looking-at "^\\s-*="))
+                  ;; First line of buffer or knot
+                   (setq not-indented nil))))))))
+    (if cur-indent
+        cur-indent
+      0)))
+
 (defvar ink-inklecate-path (executable-find "inklecate")
   "The path to the Inklecate executable.")
 
@@ -159,6 +235,7 @@
   (setq-local comment-end "")
   (setq-local comment-auto-fill-only-comments t)
   (setq-local paragraph-ignore-fill-prefix t)
+  (setq-local indent-line-function 'ink-indent-line)
   (setq font-lock-defaults '(ink-font-lock-keywords)))
 
 ;;;###autoload
