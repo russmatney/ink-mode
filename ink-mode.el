@@ -155,6 +155,22 @@
   (save-excursion
     (indent-line-to (ink-calculate-indentation))))
 
+(defun ink-indent-choices ()
+  "Indent choices and ties: add indentations between symbols."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (while (re-search-forward "\\([*+-]\\)\\(\\s-*\\)" (line-end-position) t)
+      (if (looking-at ">")
+          (goto-char (line-end-position))
+        (replace-match
+         (if indent-tabs-mode
+             "\t"
+           (make-string (max 0 (- tab-width 1)) ? ))
+         nil nil nil 2))
+      (if (looking-at "^[:space:]-")
+          (goto-char (line-end-position))))))
+
 (defun ink-calculate-indentation (&optional direction-up)
   "Find indent level at point."
   (beginning-of-line)
@@ -167,11 +183,12 @@
            ;; Choice * +
            (setq cur-indent (* (ink-count-choices) tab-width))
            (setq not-indented nil)
-           (ink-goto-first-choice-char))
+           (ink-indent-choices))
           ((looking-at "^\\(:?\\(\\s-*-\\)+\\)\\(:?[^>-*]+\\|$\\)")
            ;; Tie -
            (setq cur-indent (* (- (ink-count-choices) 1) tab-width))
-           (setq not-indented nil))
+           (setq not-indented nil)
+           (ink-indent-choices))
           (not-indented
            ;; if not choice, tie, knot or first line
            (save-excursion
