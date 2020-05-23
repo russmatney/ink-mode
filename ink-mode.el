@@ -272,18 +272,29 @@ Group 3 matches the closing whitespace and equal signs of a heading.")
   :group 'ink
   :type '(file))
 
-(defun ink-play ()
-  "Play the current ink buffer."
-  (interactive)
-  (let ((buffer (comint-check-proc "Ink")))
-    (pop-to-buffer-same-window
-     (if (or buffer (comint-check-proc (current-buffer)))
-         (get-buffer-create (or buffer "*Ink*"))
-       (current-buffer)))
-    (unless buffer
-      (switch-to-buffer-other-window
-       (apply 'make-comint-in-buffer "Ink" buffer
-              ink-inklecate-path nil `("-p" ,(buffer-file-name)))))))
+(defun ink-play (&optional go-to-knot)
+  "Play the current ink buffer.
+If the go-to-knot optional argument is not nil, start at the knot
+or stitch at point."
+  (interactive "P")
+  (let* ((file-name (buffer-file-name))
+         (ink-buffer
+          (if (comint-check-proc "*Ink*")
+              (progn
+                (comint-exec "*Ink*" "Ink" ink-inklecate-path
+                             nil `("-p" ,file-name))
+                "*Ink*")
+            (make-comint "Ink" ink-inklecate-path nil
+                         "-p" (buffer-file-name))))
+         (knot-name (ink-get-knot-name)))
+    (switch-to-buffer-other-window ink-buffer)
+    (erase-buffer)
+    (if (and go-to-knot knot-name)
+        (progn
+          (message (concat "Running " knot-name "..."))
+          (process-send-string (get-process "Ink")
+                               (concat "-> " knot-name "\n")))
+      (message "Running Ink..."))))
 
 
 ;;; Outline  ==========================================================
@@ -324,6 +335,23 @@ Derived from `markdown-end-of-subtree', derived from `org-end-of-subtree'."
     (re-search-forward
      ink-regex-header
      (line-end-position) t)))
+
+(defun ink-get-knot-name ()
+  "Return the name of the knot at point, or knot.stitch if in stitch."
+  (save-excursion
+    (let ((knot-name ""))
+      (when (ignore-errors (outline-back-to-heading t))
+        (re-search-forward ink-regex-header)
+        (setq knot-name (match-string-no-properties 2))
+        (if (= (ink-outline-level) 2)
+            ;; Currently in stitch, go up to look at knot
+            (progn
+              (outline-up-heading 1)
+              (re-search-forward ink-regex-header)
+              (setq knot-name
+                    (concat (match-string-no-properties 2) "."
+                            knot-name))))
+        knot-name))))
 
 (defun ink-shifttab ()
   "S-TAB keybinding: cycle global heading visibility by calling `ink-cycle' with argument t."
