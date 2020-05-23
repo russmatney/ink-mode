@@ -2,13 +2,29 @@
 
 ;; Copyright (C) 2016-2020 Erik Sjöstrand, Damien Picard, and
 ;; ink-mode contributors (see the commit log for details).
-;; MIT License
 
 ;; Author: Erik Sjöstrand, Damien Picard
 ;; URL: http://github.com/Kungsgeten/ink-mode
 ;; Version: 0.2
+;; Package-Version: 20200522
 ;; Keywords: languages, wp, hypermedia
-;; Package-Requires: ((emacs "24.3"))
+;; Package-Requires: ((emacs "25.1"))
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 ;;; Commentary:
 
@@ -20,6 +36,7 @@
 ;;; Code:
 (require 'rx)
 (require 'comint)
+(require 'outline)
 
 (defgroup ink nil
   "Major mode for writing interactive fiction in Ink."
@@ -30,6 +47,11 @@
 (defvar ink-mode-map
   (let ((map (make-keymap)))
     (define-key map (kbd "C-c C-c") 'ink-play)
+    ;; Visibility cycling
+    (define-key map (kbd "TAB") 'ink-cycle)
+    (define-key map (kbd "<S-iso-lefttab>") 'ink-shifttab)
+    (define-key map (kbd "<S-tab>")  'ink-shifttab)
+    (define-key map (kbd "<backtab>") 'ink-shifttab)
     map)
   "Keymap for ink major mode.")
 
@@ -42,6 +64,13 @@
     (modify-syntax-entry ?\n "> b" st)
     (modify-syntax-entry ?\" "w" st)
     st))
+
+(defconst ink-regex-header
+  "^\\s-*\\(?:\\(?1:=+\\)[ \t]+\\(?2:.*?\\)\\(?3:[ \t]*=*\\)[ \t]*\\)$"
+  "Regexp identifying Ink headings.
+Group 1 matches a single opening equal sign of a heading.
+Group 2 matches the text, without surrounding whitespace, of a heading.
+Group 3 matches the closing whitespace and equal signs of a heading.")
 
 
 ;;; Faces =======================================================
@@ -257,6 +286,133 @@
 
 ;;; Outline  ==========================================================
 
+;; Outline functions were derived from markdown-mode.el, in turn
+;; originally derived from from org.el.
+
+(defvar ink-cycle-global-status 1)
+(defvar ink-cycle-subtree-status nil)
+
+(defalias 'ink-end-of-heading 'outline-end-of-heading)
+
+(defun ink-end-of-subtree (&optional invisible-OK)
+  "Move to the end of the current subtree.
+Only visible heading lines are considered, unless INVISIBLE-OK is
+non-nil.
+Derived from `markdown-end-of-subtree', derived from `org-end-of-subtree'."
+  (outline-back-to-heading invisible-OK)
+  (let ((first t)
+        (level (ink-outline-level)))
+    (while (and (not (eobp))
+                (or first (> (ink-outline-level) level)))
+      (setq first nil)
+      (outline-next-heading))
+    (if (memq (preceding-char) '(?\n ?\^M))
+        (progn
+          ;; Go to end of line before heading
+          (forward-char -1)
+          (if (memq (preceding-char) '(?\n ?\^M))
+              ;; leave blank line before heading
+              (forward-char -1)))))
+  (point))
+
+(defun ink-on-heading-p ()
+  "Return non-nil if point is on a heading line."
+  (save-excursion
+    (beginning-of-line)
+    (re-search-forward
+     ink-regex-header
+     (line-end-position) t)))
+
+(defun ink-shifttab ()
+  "S-TAB keybinding: cycle global heading visibility by calling `ink-cycle' with argument t."
+  (interactive)
+  (ink-cycle t))
+
+(defun ink-cycle (&optional arg)
+  "Visibility cycling for Ink mode.
+If ARG is t, perform global visibility cycling. If the point is
+at a header, cycle visibility of the corresponding subtree.
+Otherwise, indent the current line or insert a tab, as
+appropriate, by calling `indent-for-tab-command'."
+  (interactive "P")
+  (cond
+
+   ;; Global cycling
+   ((eq arg t)
+    (cond
+     ;; Move from overview to contents
+     ((and (eq last-command this-command)
+           (eq ink-cycle-global-status 2))
+      (outline-hide-sublevels 1)
+      (message "CONTENTS")
+      (setq ink-cycle-global-status 3))
+     ;; Move from contents to all
+     ((and (eq last-command this-command)
+           (eq ink-cycle-global-status 3))
+      (outline-show-all)
+      (message "SHOW ALL")
+      (setq ink-cycle-global-status 1))
+     ;; Defaults to overview
+     (t
+      (outline-hide-body)
+      (message "OVERVIEW")
+      (setq ink-cycle-global-status 2))))
+
+   ;; At a heading: rotate between three different views
+   ((save-excursion (beginning-of-line 1) (ink-on-heading-p))
+    (outline-back-to-heading)
+    (let (eoh eol eos)
+      ;; Determine boundaries
+      (save-excursion
+        (outline-back-to-heading)
+        (save-excursion
+          (beginning-of-line 2)
+          (while (and (not (eobp)) ;; this is like `next-line'
+                      (get-char-property (1- (point)) 'invisible))
+            (beginning-of-line 2)) (setq eol (point)))
+        (ink-end-of-heading)   (setq eoh (point))
+        (ink-end-of-subtree t)
+        (skip-chars-forward " \t\n")
+        (beginning-of-line 1) ; in case this is an item
+        (setq eos (1- (point))))
+      ;; Find out what to do next and set `this-command'
+      (cond
+       ;; Nothing is hidden behind this heading
+       ((= eos eoh)
+        (message "EMPTY ENTRY")
+        (setq ink-cycle-subtree-status nil))
+       ;; Entire subtree is hidden in one line: open it
+       ((>= eol eos)
+        ;; (ink-show-entry)
+        (outline-show-entry)
+        (outline-show-children)
+        (message "CHILDREN")
+        (setq ink-cycle-subtree-status 'children))
+       ;; We just showed the children, now show everything.
+       ((and (eq last-command this-command)
+             (eq ink-cycle-subtree-status 'children))
+        (outline-show-subtree)
+        (message "SUBTREE")
+        (setq ink-cycle-subtree-status 'subtree))
+       ;; Default action: hide the subtree.
+       (t
+        (outline-hide-subtree)
+        (message "FOLDED")
+        (setq ink-cycle-subtree-status 'folded)))))
+
+   ;; Otherwise, indent as appropriate
+   (t
+    (indent-for-tab-command))))
+
+(defun ink-outline-level ()
+  "Return the depth to which a statement is nested in the outline."
+  (if (> (length (match-string-no-properties 1)) 1)
+      1
+    2))
+
+
+;;; Mode Definition  ==========================================================
+
 ;;;###autoload
 (define-derived-mode ink-mode
   text-mode "Ink"
@@ -270,6 +426,11 @@
   (setq-local comment-auto-fill-only-comments t)
   (setq-local paragraph-ignore-fill-prefix t)
   (setq-local indent-line-function 'ink-indent-line)
+  ;; Outline
+  (setq-local outline-regexp ink-regex-header)
+  (setq-local outline-level #'ink-outline-level)
+  ;; Cause use of ellipses for invisible text.
+  (add-to-invisibility-spec '(outline . t))
   (setq font-lock-defaults '(ink-font-lock-keywords)))
 
 ;;;###autoload
