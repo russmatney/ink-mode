@@ -272,10 +272,14 @@ Group 3 matches the closing whitespace and equal signs of a heading.")
   :group 'ink
   :type '(file))
 
+(defvar ink-comint-started nil)
+
 (defun ink-play (&optional go-to-knot)
   "Play the current ink buffer.
-If the go-to-knot optional argument is not nil, start at the knot
-or stitch at point."
+If the GO-TO-KNOT optional argument is non-nil, start at the knot
+or stitch at point. In that case we issue \"-> knot.stitch\" to
+the process, and suppress the beginning output using the comint
+output filter."
   (interactive "P")
   (let* ((file-name (buffer-file-name))
          (ink-buffer
@@ -288,13 +292,39 @@ or stitch at point."
                          "-p" (buffer-file-name))))
          (knot-name (ink-get-knot-name)))
     (switch-to-buffer-other-window ink-buffer)
-    (erase-buffer)
+    (if go-to-knot
+        (setq ink-comint-started nil)
+      (setq ink-comint-started t))
+    (comint-clear-buffer)
     (if (and go-to-knot knot-name)
         (progn
           (message (concat "Running " knot-name "..."))
-          (process-send-string (get-process "Ink")
-                               (concat "-> " knot-name "\n")))
+          (comint-send-string (get-process "Ink")
+                              (concat "-> " knot-name "\n"))
+          (comint-delete-output)
+          (comint-clear-buffer)
+          )
       (message "Running Ink..."))))
+
+(defun ink-comint-filter-output (output)
+  "Comint output filter for ink-play.
+This whole complicated filter is just so that the first output of
+comint doesn't print before the first important line when
+starting directly at a knot... OUTPUT is the output to be
+filtered."
+  (if (not ink-comint-started)
+      (progn
+        (if (string-match "\\?>" output)
+            (progn
+              (setq ink-comint-started t)
+              (setq output
+                    (replace-regexp-in-string
+                     "\\(?1:\\(?:.\\|\n\\)*?\\?> \\)\\(\\(.\\|\n\\)*\\)\\'"
+                     "" output nil nil 1)))
+          (setq output ""))))
+  output)
+
+(add-hook 'comint-preoutput-filter-functions #'ink-comint-filter-output)
 
 
 ;;; Outline  ==========================================================
