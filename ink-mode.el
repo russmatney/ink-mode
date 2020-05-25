@@ -91,6 +91,12 @@ Group 5 matches the optional equal signs following the header.")
 Group 1 matches an left or right arrow.
 Group 2 matches a link text")
 
+(defconst ink-regex-include
+  "^\\s-*\\(?1:INCLUDE\\)\\s-*\\(?2:.*?\\)\\s-*$"
+  "Regexp identifying Ink diverts.
+Group 1 matches an INCLUDE keyword
+Group 2 matches a link text")
+
 (defconst ink-regex-comment
   "^\\s-*\\(TODO\\|//\\|.*?/\\*\\|.*?\\*/\\)"
   "Regexp identifying Ink comments.")
@@ -111,28 +117,50 @@ Return its position."
       result)))
 
 (defun ink-follow-link-at-point ()
-  "Go to the header matching the link at point."
+  "Open the current link.
+Determine whether it leads to a header or to an included file by
+matching regexps."
   (interactive "@")
-  (if (thing-at-point-looking-at ink-regex-divert)
-      (let ((position nil) title knot-name)
-        (save-excursion
-          (font-lock-ensure)
-          (setq title (match-string-no-properties 2))
-          (message (concat "Jumping to " title))
-          (setq position (ink-find-header title))
-          (if (not position)
-              ;; Look for stitch with that name in current knot:
-              ;; get knot.stitch
-              (progn
-                (ignore-errors (outline-up-heading 1))
-                (setq knot-name (ink-get-knot-name))
-                (setq position (ink-find-header
-                                (concat knot-name "." title))))))
-        (if position (progn
-                       (goto-char position)
-                       (setq mark-active nil))
-          (user-error "Link %s not found" title)))
-    (user-error "No links")))
+  (let ((found-link nil))
+    (cond ((thing-at-point-looking-at ink-regex-divert)
+           (ink-follow-header-link)
+           (setq found-link t))
+          ((thing-at-point-looking-at ink-regex-include)
+           (ink-follow-file-link)
+           (setq found-link t))
+          ((not found-link)
+           (user-error "No links")))))
+
+(defun ink-follow-file-link ()
+  "Find file matching the link at point."
+  (let (file-name)
+    (setq file-name (match-string-no-properties 2))
+    (setq file-name (concat (file-name-directory
+                             (buffer-file-name))
+                            file-name))
+    (find-file file-name)
+    (message "Visiting %s" file-name)))
+
+(defun ink-follow-header-link ()
+  "Go to the header matching the link at point."
+  (let ((position nil) title knot-name)
+    (save-excursion
+      (font-lock-ensure)
+      (setq title (match-string-no-properties 2))
+      (message "Jumping to %s" title)
+      (setq position (ink-find-header title))
+      (if (not position)
+          ;; Look for stitch with that name in current knot:
+          ;; get knot.stitch
+          (progn
+            (ignore-errors (outline-up-heading 1))
+            (setq knot-name (ink-get-knot-name))
+            (setq position (ink-find-header
+                            (concat knot-name "." title))))))
+    (if position (progn
+                   (goto-char position)
+                   (outline-show-subtree))
+      (user-error "Link `%s' not found. Is it in another file?" title))))
 
 
 ;;; Faces =======================================================
@@ -178,26 +206,43 @@ Return its position."
 (defun ink-fontify-diverts (last)
   "Add text properties to next divert from point to LAST."
   (when (re-search-forward ink-regex-divert last t)
-    (let* ((link-start (match-beginning 2))
-           (link-end (match-end 2))
-           (title (match-string-no-properties 2))
-           ;; Arrow part
-           (ap (list 'face 'ink-arrow-face
-                     'invisible 'ink-shadow-face
-                     'rear-nonsticky t
-                     'font-lock-multiline t))
-           ;; Link part (without face)
-           (lp (list 'keymap ink-mode-mouse-map
-                     'mouse-face 'highlight
-                     'font-lock-multiline t
-                     'help-echo (if title title ""))))
-      (when (match-end 1)
-        (add-text-properties (match-beginning 1) (match-end 1) ap))
-      (when link-start
-        (add-text-properties link-start link-end lp)
-        (add-face-text-property link-start link-end
-                                'ink-link-face 'append))
-      t)))
+    (ink-fontify-links
+     ;; Arrow part
+     (list 'face 'ink-arrow-face
+           'rear-nonsticky t
+           'font-lock-multiline t))
+    t))
+
+(defun ink-fontify-includes (last)
+  "Add text properties to next include from point to LAST."
+  (when (re-search-forward ink-regex-include last t)
+    (ink-fontify-links
+     ;; INCLUDE part
+     (list 'face 'font-lock-keyword-face
+           'rear-nonsticky t
+           'font-lock-multiline t))
+    t))
+
+(defun ink-fontify-links (pre-part)
+  "Add text properties to link.
+Use the PRE-PART list as properties to fontify the part preceding
+the link, whether it be an arrow for diverts, or the INCLUDE
+keyword."
+  (let* ((link-start (match-beginning 2))
+         (link-end (match-end 2))
+         (title (match-string-no-properties 2))
+         ;; Link part (without face)
+         (lp (list 'keymap ink-mode-mouse-map
+                   'mouse-face 'highlight
+                   'font-lock-multiline t
+                   'help-echo (if title title ""))))
+    (when (match-end 1)
+      (add-text-properties (match-beginning 1) (match-end 1) pre-part))
+    (when link-start
+      (add-text-properties link-start link-end lp)
+      (add-face-text-property link-start link-end
+                              'ink-link-face 'append))
+    t))
 
 (defvar ink-font-lock-keywords
   `(
@@ -228,7 +273,10 @@ Return its position."
     ("^\\s-*\\(\\(?:\\s-*-\\)+\\)\\(?:[^>]\\|$\\)" 1 font-lock-type-face)
 
     ;; Keywords at beginning of line
-    ("^\\s-*\\(VAR\\|CONST\\|INCLUDE\\|LIST\\)" . font-lock-keyword-face)
+    ("^\\s-*\\(VAR\\|CONST\\|LIST\\)" . font-lock-keyword-face)
+
+    ;; Includes
+    (ink-fontify-includes)
 
     ;; Vars, constants and lists
     ("^\\s-*\\(?:VAR\\|CONST\\|LIST\\)\\s-+\\([[:word:]_]+\\)" 1
@@ -449,7 +497,7 @@ Derived from `markdown-end-of-subtree', derived from `org-end-of-subtree'."
         (if (= (ink-outline-level) 2)
             ;; Currently in stitch, go up to look at knot
             (progn
-              (outline-up-heading 1)
+              (ignore-errors (outline-up-heading 1))
               (re-search-forward ink-regex-header)
               (setq knot-name
                     (concat (match-string-no-properties 3) "."
