@@ -36,6 +36,7 @@
 ;;; Code:
 (require 'rx)
 (require 'comint)
+(require 'thingatpt)
 (require 'outline)
 
 (defgroup ink nil
@@ -47,6 +48,7 @@
 (defvar ink-mode-map
   (let ((map (make-keymap)))
     (define-key map (kbd "C-c C-c") 'ink-play)
+    (define-key map (kbd "C-c C-o") 'ink-follow-link-at-point)
     ;; Visibility cycling
     (define-key map (kbd "TAB") 'ink-cycle)
     (define-key map (kbd "<S-iso-lefttab>") 'ink-shifttab)
@@ -54,6 +56,13 @@
     (define-key map (kbd "<backtab>") 'ink-shifttab)
     map)
   "Keymap for ink major mode.")
+
+(defvar ink-mode-mouse-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [follow-link] 'mouse-face)
+    (define-key map [mouse-2] #'ink-follow-link-at-point)
+    map)
+  "Keymap for following links with mouse.")
 
 (defconst ink-mode-syntax-table
   (let ((st (make-syntax-table)))
@@ -65,16 +74,65 @@
     (modify-syntax-entry ?\" "w" st)
     st))
 
-(defconst ink-regex-header
-  "^\\s-*\\(?:\\(?1:=+\\)[ \t]+\\(?2:.*?\\)\\(?3:[ \t]*=*\\)[ \t]*\\)$"
-  "Regexp identifying Ink headings.
-Group 1 matches a single opening equal sign of a heading.
-Group 2 matches the text, without surrounding whitespace, of a heading.
-Group 3 matches the closing whitespace and equal signs of a heading.")
+
+;;; Regular Expressions =======================================================
+
+(defconst ink-regex-header "^\\s-*\\(?1:=+\\)\\s-*\\(?2:\\(?:function\\)?\\)\\s-*\\(?3:[[:word:]_.]+\\)\\s-*\\(?4:\\(?:([^)]*)\\)?\\)\\s-*\\(?5:=*\\)"
+  "Regexp identifying Ink headers.
+Group 1 matches the equal signs preceding the title.
+Group 2 matches the function keyword.
+Group 3 matches the header title.
+Group 4 matches the function arguments.
+Group 5 matches the optional equal signs following the header.")
+
+(defconst ink-regex-divert
+  "\\(?1:->\\|<-\\)\\s-*\\(?2:[[:word:]_.]*\\)?"
+  "Regexp identifying Ink diverts.
+Group 1 matches an left or right arrow.
+Group 2 matches a link text")
 
 (defconst ink-regex-comment
   "^\\s-*\\(TODO\\|//\\|.*?/\\*\\|.*?\\*/\\)"
   "Regexp identifying Ink comments.")
+
+
+;;; Link following =======================================================
+
+(defun ink-find-header (title)
+  "Find a header (knot or stitch) matching TITLE in the buffer.
+Return its position."
+  (let ((result nil))
+    (save-excursion
+      (goto-char (point-min))
+      (while (and (not result)
+                  (re-search-forward ink-regex-header (buffer-end 1) t))
+        (when (string-equal (ink-get-knot-name) title)
+          (setq result (point))))
+      result)))
+
+(defun ink-follow-link-at-point ()
+  "Go to the header matching the link at point."
+  (interactive "@")
+  (if (thing-at-point-looking-at ink-regex-divert)
+      (let ((position nil) title knot-name)
+        (save-excursion
+          (font-lock-ensure)
+          (setq title (match-string-no-properties 2))
+          (message (concat "Jumping to " title))
+          (setq position (ink-find-header title))
+          (if (not position)
+              ;; Look for stitch with that name in current knot:
+              ;; get knot.stitch
+              (progn
+                (ignore-errors (outline-up-heading 1))
+                (setq knot-name (ink-get-knot-name))
+                (setq position (ink-find-header
+                                (concat knot-name "." title))))))
+        (if position (progn
+                       (goto-char position)
+                       (setq mark-active nil))
+          (user-error "Link %s not found" title)))
+    (user-error "No links")))
 
 
 ;;; Faces =======================================================
@@ -94,6 +152,16 @@ Group 3 matches the closing whitespace and equal signs of a heading.")
   "Face for Ink stitches: = *."
   :group 'ink-faces)
 
+(defface ink-link-face
+  '((t (:inherit link)))
+  "Face for Ink divert links."
+  :group 'ink-faces)
+
+(defface ink-arrow-face
+  '((t (:inherit font-lock-builtin-face)))
+  "Face for Ink divert arrows."
+  :group 'ink-faces)
+
 (defface ink-tag-face
   '((t (:inherit font-lock-doc-face)))
   "Face for Ink tags: ()."
@@ -107,31 +175,45 @@ Group 3 matches the closing whitespace and equal signs of a heading.")
 
 ;;; Highlighting =======================================================
 
+(defun ink-fontify-diverts (last)
+  "Add text properties to next divert from point to LAST."
+  (when (re-search-forward ink-regex-divert last t)
+    (let* ((link-start (match-beginning 2))
+           (link-end (match-end 2))
+           (title (match-string-no-properties 2))
+           ;; Arrow part
+           (ap (list 'face 'ink-arrow-face
+                     'invisible 'ink-shadow-face
+                     'rear-nonsticky t
+                     'font-lock-multiline t))
+           ;; Link part (without face)
+           (lp (list 'keymap ink-mode-mouse-map
+                     'mouse-face 'highlight
+                     'font-lock-multiline t
+                     'help-echo (if title title ""))))
+      (when (match-end 1)
+        (add-text-properties (match-beginning 1) (match-end 1) ap))
+      (when link-start
+        (add-text-properties link-start link-end lp)
+        (add-face-text-property link-start link-end
+                                'ink-link-face 'append))
+      t)))
+
 (defvar ink-font-lock-keywords
   `(
     ;; TODO-style comments
     ("^\\s-*\\(TODO.*\\)" . font-lock-comment-face)
 
     ;; Knots
-    ;; ^\s*(={2,})\s*(function)?\s*(\w+)\s*(\([^)]*\))?\s*(={1,})?
-    ("^\\s-*\\(=\\{2,\\}\\)\\s-*\\(\\(?:function\\)?\\)\\s-*\\([[:word:]_]+\\)\\s-*\\(\\(?:([^)]*)\\)?\\)\\s-*\\(\\(?:=\\{1,\\}\\)?\\)"
+    (,ink-regex-header
      (1 'ink-shadow-face)
      (2 font-lock-keyword-face)
      (3 'ink-knot-face)
      (4 font-lock-variable-name-face)
      (5 'ink-shadow-face))
 
-    ;; Stitches
-    ;; ^\s*(=)\s*(\w+)\s*(\([^)\n]*\))?\s*$
-    ("^\\s-*\\(=\\)\\s-*\\([[:word:]_]+\\)\\s-*\\(\\(:?([^)\n]*)\\)?\\)$"
-     (1 'ink-shadow-face)
-     (2 'ink-stitch-face)
-     (3 font-lock-variable-name-face))
-
     ;; Diverts, threads and tunnels
-    ("\\(\\(?:->\\|<-\\)+\\)\\s-*\\([[:word:]_]*\\)"
-     (1 font-lock-builtin-face)
-     (2 'ink-knot-face))
+    (ink-fontify-diverts)
 
     ;; Labels
     (,(rx bol (0+ whitespace)
@@ -229,7 +311,7 @@ Group 3 matches the closing whitespace and equal signs of a heading.")
            (setq not-indented nil)
            (ink-indent-choices))
           (not-indented
-           ;; if not choice, tie, knot, stitch or first line
+           ;; If not choice, tie, knot, stitch or first line
            (save-excursion
              (if (looking-at ink-regex-comment)
                  ;; Comment // or TODO: look down until we find
@@ -302,8 +384,7 @@ output filter."
           (comint-send-string (get-process "Ink")
                               (concat "-> " knot-name "\n"))
           (comint-delete-output)
-          (comint-clear-buffer)
-          )
+          (comint-clear-buffer))
       (message "Running Ink..."))))
 
 (defun ink-comint-filter-output (output)
@@ -358,28 +439,20 @@ Derived from `markdown-end-of-subtree', derived from `org-end-of-subtree'."
               (forward-char -1)))))
   (point))
 
-(defun ink-on-heading-p ()
-  "Return non-nil if point is on a heading line."
-  (save-excursion
-    (beginning-of-line)
-    (re-search-forward
-     ink-regex-header
-     (line-end-position) t)))
-
 (defun ink-get-knot-name ()
   "Return the name of the knot at point, or knot.stitch if in stitch."
   (save-excursion
     (let ((knot-name ""))
       (when (ignore-errors (outline-back-to-heading t))
         (re-search-forward ink-regex-header)
-        (setq knot-name (match-string-no-properties 2))
+        (setq knot-name (match-string-no-properties 3))
         (if (= (ink-outline-level) 2)
             ;; Currently in stitch, go up to look at knot
             (progn
               (outline-up-heading 1)
               (re-search-forward ink-regex-header)
               (setq knot-name
-                    (concat (match-string-no-properties 2) "."
+                    (concat (match-string-no-properties 3) "."
                             knot-name))))
         knot-name))))
 
@@ -419,7 +492,7 @@ appropriate, by calling `indent-for-tab-command'."
       (setq ink-cycle-global-status 2))))
 
    ;; At a heading: rotate between three different views
-   ((save-excursion (beginning-of-line 1) (ink-on-heading-p))
+   ((thing-at-point-looking-at ink-regex-header)
     (outline-back-to-heading)
     (let (eoh eol eos)
       ;; Determine boundaries
