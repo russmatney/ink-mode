@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+#name : === Knot ===
+#key : kt
+# --
+=== ${1:knot name} ===
+${2:knot content}
+-> END
+$0

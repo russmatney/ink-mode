@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+#name : -> Divert
+#key : dv
+# --
+-> ${1:target_knot_name}
+$0

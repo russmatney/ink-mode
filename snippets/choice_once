@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+#name : * Choice once
+#key : co
+# --
+* ${1:choice} [${2:choice and next}] ${3:next}
+$0

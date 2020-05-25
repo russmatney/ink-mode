@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+#name : = Stitch
+#key : st
+# --
+= ${1:stitch name}
+${2:stitch content}
+-> END
+$0

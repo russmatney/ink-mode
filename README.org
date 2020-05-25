@@ -13,6 +13,7 @@ language for writing interactive fiction developed by [[https://www.inklestudios
     =C-u C-c C-c=
 - outline: fold knots and stitches as in org-mode, with =TAB= and
   =S-TAB=
+- a collection of YASnippet snippets for Ink
 
 ** Installing
 Add =ink-mode.el= to your load-path then add ~(require 'ink-mode)~ to
@@ -22,6 +23,10 @@ requiring ink-mode:
   (use-package ink-mode
     :mode "\\.ink\\'")
 #+END_SRC
+
+To install the snippets, add the snippets directory to
+`yas-snippet-dirs` in your init file. Please refer to the [[https://github.com/joaotavora/yasnippet#where-are-the-snippets][YASnippet
+documentation]].
 
 ** License
 This program is free software: you can redistribute it and/or modify

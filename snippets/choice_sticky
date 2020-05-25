@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+#name : + Choice sticky
+#key : cs
+# --
++ ${1:choice} [${2:choice and next}] ${3:next}
+$0
