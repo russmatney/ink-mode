@@ -402,7 +402,7 @@ keyword."
   :group 'ink
   :type '(file))
 
-(defvar ink-comint-started nil)
+(defvar ink-comint-do-filter nil)
 
 (defun ink-play (&optional go-to-knot)
   "Play the current ink buffer.
@@ -422,35 +422,42 @@ output filter."
                          "-p" (buffer-file-name))))
          (knot-name (ink-get-knot-name)))
     (switch-to-buffer-other-window ink-buffer)
-    (if go-to-knot
-        (setq ink-comint-started nil)
-      (setq ink-comint-started t))
     (comint-clear-buffer)
     (if (and go-to-knot knot-name)
         (progn
+          (setq ink-comint-do-filter t)
           (message (concat "Running " knot-name "..."))
           (comint-send-string (get-process "Ink")
                               (concat "-> " knot-name "\n"))
           (comint-delete-output)
           (comint-clear-buffer))
-      (message "Running Ink..."))))
+      (setq ink-comint-do-filter nil))
+    (message "Running Ink...")))
+
+(defun ink-filter-output-line (line)
+  "Filter single line of text from Inklecate's output.
+The filter is active only on starting play. It outputs all
+errors, warnings and infos appearing in LINE, and discards the
+rest."
+  (let ((result ""))
+    (if ink-comint-do-filter
+        (cond ((string-match-p "^\\(ERROR:\\|WARNING:\\|TODO\\)" line)
+               (setq result (concat line "\n")))
+              ((string-match-p "\\?>" line)
+               (setq result (concat (substring line 3) "\n"))
+               (setq ink-comint-do-filter nil))
+              ((not result)
+               (setq result "")))
+      (setq result (concat line "\n")))
+    result))
 
 (defun ink-comint-filter-output (output)
   "Comint output filter for ink-play.
-This whole complicated filter is just so that the first output of
-comint doesn't print before the first important line when
-starting directly at a knot... OUTPUT is the output to be
-filtered."
-  (if (not ink-comint-started)
-      (progn
-        (if (string-match "\\?>" output)
-            (progn
-              (setq ink-comint-started t)
-              (setq output
-                    (replace-regexp-in-string
-                     "\\(?1:\\(?:.\\|\n\\)*?\\?> \\)\\(\\(.\\|\n\\)*\\)\\'"
-                     "" output nil nil 1)))
-          (setq output ""))))
+This whole filter is just so that the first output of comint
+doesn't print before the first important line when starting
+directly at a knot... OUTPUT is the output to be filtered."
+  (if ink-comint-do-filter
+      (setq output (mapconcat #'ink-filter-output-line (split-string output "\n") "")))
   output)
 
 (add-hook 'comint-preoutput-filter-functions #'ink-comint-filter-output)
