@@ -71,8 +71,15 @@
     (modify-syntax-entry ?* ". 23" st)
     ;; End of line ends a comment
     (modify-syntax-entry ?\n "> b" st)
-    (modify-syntax-entry ?\" "w" st)
-    st))
+    (modify-syntax-entry ?\" ".   " st)
+    (modify-syntax-entry ?\( ".   " st)
+    (modify-syntax-entry ?\) ".   " st)
+    (modify-syntax-entry ?\{ ".   " st)
+    (modify-syntax-entry ?\} ".   " st)
+    (modify-syntax-entry ?\[ ".   " st)
+    (modify-syntax-entry ?\] ".   " st)
+    st)
+"Syntax table used while in `ink-mode'.")
 
 
 ;;; Regular Expressions =======================================================
@@ -261,10 +268,7 @@ keyword."
     (ink-fontify-diverts)
 
     ;; Labels
-    (,(rx bol (0+ whitespace)
-          (1+ (or whitespace "*" "+" "-"))
-          (group "(" (1+ not-newline) ")"))
-     1 font-lock-variable-name-face)
+    (,ink-regex-label 1 font-lock-variable-name-face)
 
     ;; Choices
     ("^\\s-*\\([*+]\\s-*\\)+" . font-lock-type-face)
@@ -290,8 +294,12 @@ keyword."
     ("\\(?:^\\|[^\\\\]\\)\\([{|}]+\\)" 1 font-lock-constant-face)
 
     ;; Code lines
-    (,(rx bol (0+ whitespace)
-          (group "~") (1+ not-newline)) . font-lock-type-face)
+    ("\\(^\\s-*~\\)" (0 font-lock-type-face)
+     ("\\_<\\(?:return\\|temp\\|ref\\)\\_>" nil nil (0 font-lock-keyword-face))
+     ("\\(\".*?\"\\)" nil nil (0 font-lock-string-face))
+     ("\\_<\\(?1:.*?\\)\\s-*\\(?2:=\\)\\_>" nil nil
+      (1 font-lock-variable-name-face))
+     ("\\_<\\(SEED_RANDOM\\|RANDOM\\|CHOICE_COUNT\\|TURNS\\|TURNS_SINCE\\|INT\\|FLOOR\\|FLOAT\\)\\_>" nil nil (0 font-lock-builtin-face)))
 
     ;; Tags
     ("\\(?:^\\|[^\\\\]\\)\\(#.*\\)$" 1 'ink-tag-face)
@@ -628,26 +636,29 @@ appropriate, by calling `indent-for-tab-command'."
 ;;; Mode Definition  ==========================================================
 
 ;;;###autoload
-(define-derived-mode ink-mode
-  text-mode "Ink"
+(define-derived-mode ink-mode prog-mode "Ink"
   "Major mode for editing interactive fiction using the Ink
   scripting language."
   :syntax-table ink-mode-syntax-table
+  (setq tab-width 2)
+
+  ;; Syntax
   (setq-local comment-start "// ")
   (setq-local comment-start-skip "//+\\s-*")
   (setq-local comment-use-syntax t)
   (setq-local comment-end "")
   (setq-local comment-auto-fill-only-comments t)
+  (setq font-lock-defaults '(ink-font-lock-keywords))
+
+  ;; Indent
   (setq-local paragraph-ignore-fill-prefix t)
   (setq-local indent-line-function #'ink-indent-line)
 
   ;; Outline
   (setq-local outline-regexp ink-regex-header)
   (setq-local outline-level #'ink-outline-level)
-
   ;; Cause use of ellipses for invisible text.
   (add-to-invisibility-spec '(outline . t))
-  (setq font-lock-defaults '(ink-font-lock-keywords))
 
   ;; Flycheck
   (when (fboundp 'flycheck-mode-on-safe)
