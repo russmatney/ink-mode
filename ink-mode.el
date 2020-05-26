@@ -38,6 +38,7 @@
 (require 'comint)
 (require 'thingatpt)
 (require 'outline)
+(require 'subr-x)
 
 (defgroup ink nil
   "Major mode for writing interactive fiction in Ink."
@@ -79,18 +80,25 @@
     (modify-syntax-entry ?\[ ".   " st)
     (modify-syntax-entry ?\] ".   " st)
     st)
-"Syntax table used while in `ink-mode'.")
+  "Syntax table used while in `ink-mode'.")
 
 
 ;;; Regular Expressions =======================================================
 
-(defconst ink-regex-header "^\\s-*\\(?1:=+\\)\\s-*\\(?2:\\(?:function\\)?\\)\\s-*\\(?3:[[:word:]_.]+\\)\\s-*\\(?4:\\(?:([^)]*)\\)?\\)\\s-*\\(?5:=*\\)"
+(defconst ink-regex-header
+  "^\\s-*\\(?1:=+\\)\\s-*\\(?2:\\(?:function\\)?\\)\\s-*\\(?3:[[:word:]_.]+\\)\\s-*\\(?4:\\(?:([^)]*)\\)?\\)\\s-*\\(?5:=*\\)"
   "Regexp identifying Ink headers.
 Group 1 matches the equal signs preceding the title.
 Group 2 matches the function keyword.
 Group 3 matches the header title.
 Group 4 matches the function arguments.
 Group 5 matches the optional equal signs following the header.")
+
+(defconst ink-regex-label
+  "^\\(?:\\s-*[*+\\-]\\)+\\s-*\\(?1:(\\(?2:[[:word:]_]+\\))\\)"
+  "Regexp identifying Ink diverts.
+Group 1 matches a label including parentheses.
+Group 2 matches a label excluding parentheses.")
 
 (defconst ink-regex-divert
   "\\(?1:->\\|<-\\)\\s-*\\(?2:[[:word:]_.]*\\)?"
@@ -111,18 +119,6 @@ Group 2 matches a link text")
 
 ;;; Link following =======================================================
 
-(defun ink-find-header (title)
-  "Find a header (knot or stitch) matching TITLE in the buffer.
-Return its position."
-  (let ((result nil))
-    (save-excursion
-      (goto-char (point-min))
-      (while (and (not result)
-                  (re-search-forward ink-regex-header (buffer-end 1) t))
-        (when (string-equal (ink-get-knot-name) title)
-          (setq result (point))))
-      result)))
-
 (defun ink-follow-link-at-point ()
   "Open the current link.
 Determine whether it leads to a header or to an included file by
@@ -130,13 +126,142 @@ matching regexps."
   (interactive "@")
   (let ((found-link nil))
     (cond ((thing-at-point-looking-at ink-regex-divert)
-           (ink-follow-header-link)
+           (ink-follow-header-or-label-link)
            (setq found-link t))
           ((thing-at-point-looking-at ink-regex-include)
            (ink-follow-file-link)
            (setq found-link t))
           ((not found-link)
            (user-error "No links")))))
+
+(defun ink-find-header (title)
+  "Find a header (knot or stitch) matching TITLE in the buffer.
+Return its position."
+  (let (position)
+    (save-excursion
+      (goto-char (point-min))
+      (while (and (not position)
+                  (re-search-forward ink-regex-header (buffer-end 1) t))
+        (when (string-equal (ink-get-knot-name) title)
+          (setq position (point))))
+      position)))
+
+(defun ink-find-label (title-list &optional start end)
+  "Find a label matching TITLE-LIST in the buffer.
+Return its position.
+TITLE-LIST consists of one two three elements, giving four possiblities:
+(label stitch knot)
+(label stitch)
+(label knot)
+(label)
+START and END can specify the range in which
+to search."
+  ;; reverse title list to get label first
+  (setq title-list (reverse title-list))
+  (let (position
+        (start (if start start (point-min)))
+        (end   (if end end (point-max))))
+    (save-excursion
+      (goto-char start)
+      (while (and (not position)
+                  (re-search-forward ink-regex-label end t))
+        ;; do different checks depending on title list length
+        (cond ((and (not position)
+                    (= 3 (length title-list))
+                    ;; three elements: compare all three
+                    (equal (ink-get-label-name) title-list))
+               (setq position (point)))
+              ((and (not position)
+                    (= 2 (length title-list))
+                    ;; two elements: compare first and (second or third) elements
+                    (and
+                     (equal (nth 0 (ink-get-label-name)) (nth 0 title-list))
+                     (or
+                      (equal (nth 1 (ink-get-label-name)) (nth 1 title-list))
+                      (equal (nth 2 (ink-get-label-name)) (nth 1 title-list)))))
+               (setq position (point)))
+              ((and (not position)
+                    (= 1 (length title-list))
+                    ;; one element: compare only label
+                    (equal (nth 0 (ink-get-label-name)) (nth 0 title-list)))
+               (setq position (point)))
+              )))
+    position))
+
+(defun ink-follow-header-or-label-link ()
+  "Go to the header or label matching the link at point."
+  (let (position
+        title title-list
+        knot-name stitch-name
+        stitch-start stitch-end
+        knot-start knot-end)
+    (font-lock-ensure)
+    (setq title (string-trim-right (match-string-no-properties 2) "\\."))
+    (save-excursion
+      ;; get knot and stitch names and start / end positions
+      (when (ignore-errors (outline-back-to-heading t))
+        (if (= (ink-outline-level) 2)
+            ;; In stitch
+            (progn
+              (setq stitch-name (ink-get-knot-name))
+              (setq stitch-start (point))
+              (save-excursion
+                (ink-end-of-subtree t)
+                (setq stitch-end (point))
+                )
+              (ignore-errors (outline-up-heading 1))
+              (setq knot-name (ink-get-knot-name))
+              (setq knot-start (point))
+              (save-excursion
+                (ink-end-of-subtree t)
+                (setq knot-end (point))
+                )
+              )
+          ;; In knot
+          (setq knot-name (ink-get-knot-name))
+          (setq knot-start (point))
+          (save-excursion
+            (ink-end-of-subtree t)
+            (setq knot-end (point))
+            )
+          )))
+
+    ;; Look for header
+    (setq position (ink-find-header title))
+    ;; Look for stitch with that name in current knot:
+    (if (not position)
+        (setq position (ink-find-header (concat knot-name "." title))))
+
+    ;; Look for labels:
+    (setq title-list (split-string title "\\."))
+    (unless position
+      (cond ((or (= 1 (length title-list))
+                 (= 2 (length title-list)))
+             ;; Title has one or two element;
+             ;; look in order in stitch, knot and outside
+             (if (and (not position)
+                      stitch-start)
+                 (setq position
+                       (ink-find-label title-list stitch-start stitch-end)))
+             (if (and (not position)
+                      knot-start)
+                 (setq position
+                       (ink-find-label title-list knot-start knot-end)))
+             (if (not position)
+                 (setq position
+                       (ink-find-label title-list))))
+
+            ;; Title has three elements;
+            ;; look as knot.stitch.label in whole buffer
+            ((and (not position)
+                  (= 3 (length title-list)))
+             (setq position (ink-find-label title-list)))))
+
+    (if position (progn
+                   (message "Jumping to %s" title)
+                   (goto-char position)
+                   (ignore-errors (outline-show-subtree)))
+      (user-error "Link `%s' not found. Is it in another file?" title))))
 
 (defun ink-follow-file-link ()
   "Find file matching the link at point."
@@ -147,27 +272,6 @@ matching regexps."
                             file-name))
     (find-file file-name)
     (message "Visiting %s" file-name)))
-
-(defun ink-follow-header-link ()
-  "Go to the header matching the link at point."
-  (let ((position nil) title knot-name)
-    (save-excursion
-      (font-lock-ensure)
-      (setq title (string-trim-right (match-string-no-properties 2) "\\."))
-      (message "Jumping to %s" title)
-      (setq position (ink-find-header title))
-      (if (not position)
-          ;; Look for stitch with that name in current knot:
-          ;; get knot.stitch
-          (progn
-            (ignore-errors (outline-up-heading 1))
-            (setq knot-name (ink-get-knot-name))
-            (setq position (ink-find-header
-                            (concat knot-name "." title))))))
-    (if position (progn
-                   (goto-char position)
-                   (outline-show-subtree))
-      (user-error "Link `%s' not found. Is it in another file?" title))))
 
 
 ;;; Faces =======================================================
@@ -544,6 +648,22 @@ Derived from `markdown-end-of-subtree', derived from `org-end-of-subtree'."
                     (concat (match-string-no-properties 3) "."
                             knot-name))))
         knot-name))))
+
+(defun ink-get-label-name ()
+  "Return the name of the label at point.
+Can also be knot.label if in knot, or knot.stitch.label if in
+stitch."
+  (save-excursion
+    (beginning-of-line)
+    (let (
+          knot-name
+          (title-list (list)))
+      (re-search-forward ink-regex-label (line-end-position) t)
+      (setq title-list (list (match-string-no-properties 2)))
+      (setq knot-name (ink-get-knot-name))
+      (if (and knot-name title-list)
+          (setq title-list (append title-list (reverse (split-string knot-name "\\.")))))
+      title-list)))
 
 (defun ink-shifttab ()
   "S-TAB keybinding: cycle global heading visibility by calling `ink-cycle' with argument t."

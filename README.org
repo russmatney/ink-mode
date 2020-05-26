@@ -6,8 +6,7 @@ language for writing interactive fiction developed by [[https://www.inklestudios
 ** Features
 - syntax highlighting
 - automatic indentation
-- jump to link inside an Ink file by clicking or =C-c C-o= (links
-  between files not supported)
+- jump to link inside an Ink file by clicking or =C-c C-o=
 - command to playtest the game from Emacs: =C-c C-c=
   - start the game at a particular knot with the universal argument
     =C-u C-c C-c=
