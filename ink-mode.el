@@ -463,6 +463,32 @@ directly at a knot... OUTPUT is the output to be filtered."
 (add-hook 'comint-preoutput-filter-functions #'ink-comint-filter-output)
 
 
+;;; Error checking with flycheck ==========================================================
+
+(when (boundp 'flycheck-checkers)
+  (flycheck-def-executable-var ink-flycheck-checker "inklecate")
+  (flycheck-define-command-checker 'ink-flycheck-checker
+    "An ink syntax checker using the Inklecate compiler.
+
+See URL `https://www.inklestudios.com/ink/'."
+    ;; :command (ink-inklecate-path source)
+    :command `(,ink-inklecate-path source-inplace)
+    :error-patterns
+    '((warning ;line-start
+       "WARNING: '" (file-name)
+       "' line " line ": "
+       (message) line-end)
+      (error ;line-start
+       "ERROR: '" (file-name)
+       "' line " line ": "
+       (message) line-end)
+      (info ;line-start
+       "TODO: '" (file-name)
+       "' line " line ": "
+       (message) line-end))
+    :modes 'ink-mode))
+
+
 ;;; Outline  ==========================================================
 
 ;; Outline functions were derived from markdown-mode.el, in turn
@@ -614,12 +640,18 @@ appropriate, by calling `indent-for-tab-command'."
   (setq-local comment-auto-fill-only-comments t)
   (setq-local paragraph-ignore-fill-prefix t)
   (setq-local indent-line-function #'ink-indent-line)
+
   ;; Outline
   (setq-local outline-regexp ink-regex-header)
   (setq-local outline-level #'ink-outline-level)
+
   ;; Cause use of ellipses for invisible text.
   (add-to-invisibility-spec '(outline . t))
-  (setq font-lock-defaults '(ink-font-lock-keywords)))
+  (setq font-lock-defaults '(ink-font-lock-keywords))
+
+  ;; Flycheck
+  (when (fboundp 'flycheck-mode-on-safe)
+    (add-to-list 'flycheck-checkers 'ink-flycheck-checker t)))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ink\\'" . ink-mode))

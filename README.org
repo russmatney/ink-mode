@@ -13,6 +13,7 @@ language for writing interactive fiction developed by [[https://www.inklestudios
     =C-u C-c C-c=
 - outline: fold knots and stitches as in org-mode, with =TAB= and
   =S-TAB=
+- error reporting using flycheck
 - a collection of YASnippet snippets for Ink
 
 ** Installing
