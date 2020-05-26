@@ -153,7 +153,7 @@ matching regexps."
   (let ((position nil) title knot-name)
     (save-excursion
       (font-lock-ensure)
-      (setq title (match-string-no-properties 2))
+      (setq title (string-trim-right (match-string-no-properties 2) "\\."))
       (message "Jumping to %s" title)
       (setq position (ink-find-header title))
       (if (not position)
@@ -237,7 +237,7 @@ the link, whether it be an arrow for diverts, or the INCLUDE
 keyword."
   (let* ((link-start (match-beginning 2))
          (link-end (match-end 2))
-         (title (match-string-no-properties 2))
+         (title (string-trim-right (match-string-no-properties 2) "\\."))
          ;; Link part (without face)
          (lp (list 'keymap ink-mode-mouse-map
                    'mouse-face 'highlight
