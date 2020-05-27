@@ -150,10 +150,10 @@ Return its position."
   "Find a label matching TITLE-LIST in the buffer.
 Return its position.
 TITLE-LIST consists of one two three elements, giving four possiblities:
-(label stitch knot)
-(label stitch)
-(label knot)
-(label)
+\(label stitch knot\)
+\(label stitch\)
+\(label knot\)
+\(label\)
 START and END can specify the range in which
 to search."
   ;; reverse title list to get label first
@@ -184,8 +184,7 @@ to search."
                     (= 1 (length title-list))
                     ;; one element: compare only label
                     (equal (nth 0 (ink-get-label-name)) (nth 0 title-list)))
-               (setq position (point)))
-              )))
+               (setq position (point))))))
     position))
 
 (defun ink-follow-header-or-label-link ()
@@ -197,34 +196,32 @@ to search."
         knot-start knot-end)
     (font-lock-ensure)
     (setq title (string-trim-right (match-string-no-properties 2) "\\."))
-    (save-excursion
-      ;; get knot and stitch names and start / end positions
-      (when (ignore-errors (outline-back-to-heading t))
-        (if (= (ink-outline-level) 2)
-            ;; In stitch
-            (progn
-              (setq stitch-name (ink-get-knot-name))
-              (setq stitch-start (point))
-              (save-excursion
-                (ink-end-of-subtree t)
-                (setq stitch-end (point))
-                )
-              (ignore-errors (outline-up-heading 1))
+    (if (string-match-p "^\\(\\END\\|DONE\\)" title)
+        (user-error "%s is not a real link" title)
+      (progn
+        (save-excursion
+          ;; get knot and stitch names and start / end positions
+          (when (ignore-errors (outline-back-to-heading t))
+            (if (= (ink-outline-level) 2)
+                ;; In stitch
+                (progn
+                  (setq stitch-name (ink-get-knot-name))
+                  (setq stitch-start (point))
+                  (save-excursion
+                    (ink-end-of-subtree t)
+                    (setq stitch-end (point)))
+                  (ignore-errors (outline-up-heading 1))
+                  (setq knot-name (ink-get-knot-name))
+                  (setq knot-start (point))
+                  (save-excursion
+                    (ink-end-of-subtree t)
+                    (setq knot-end (point))))
+              ;; In knot
               (setq knot-name (ink-get-knot-name))
               (setq knot-start (point))
               (save-excursion
                 (ink-end-of-subtree t)
-                (setq knot-end (point))
-                )
-              )
-          ;; In knot
-          (setq knot-name (ink-get-knot-name))
-          (setq knot-start (point))
-          (save-excursion
-            (ink-end-of-subtree t)
-            (setq knot-end (point))
-            )
-          )))
+                (setq knot-end (point))))))
 
     ;; Look for header
     (setq position (ink-find-header title))
@@ -261,7 +258,7 @@ to search."
                    (message "Jumping to %s" title)
                    (goto-char position)
                    (ignore-errors (outline-show-subtree)))
-      (user-error "Link `%s' not found. Is it in another file?" title))))
+      (user-error "Link `%s' not found. Is it in another file?" title))))))
 
 (defun ink-follow-file-link ()
   "Find file matching the link at point."
