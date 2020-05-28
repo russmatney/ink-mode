@@ -39,6 +39,7 @@
 (require 'thingatpt)
 (require 'outline)
 (require 'subr-x)
+(require 'easymenu)
 
 (defgroup ink nil
   "Major mode for writing interactive fiction in Ink."
@@ -49,6 +50,7 @@
 (defvar ink-mode-map
   (let ((map (make-keymap)))
     (define-key map (kbd "C-c C-c") 'ink-play)
+    (define-key map (kbd "C-c C-p") 'ink-play-knot)
     (define-key map (kbd "C-c C-o") 'ink-follow-link-at-point)
     ;; Visibility cycling
     (define-key map (kbd "TAB") 'ink-cycle)
@@ -64,6 +66,14 @@
     (define-key map [mouse-2] #'ink-follow-link-at-point)
     map)
   "Keymap for following links with mouse.")
+
+(easy-menu-define ink-mode-menu ink-mode-map
+  "Menu for `ink-mode'."
+  '("Ink"
+    ["Run game from start" ink-play]
+    ["Run game from knot or stitch" ink-play-knot]
+    "---"
+    ["Follow link at point" ink-follow-link-at-point]))
 
 (defconst ink-mode-syntax-table
   (let ((st (make-syntax-table)))
@@ -521,6 +531,11 @@ keyword."
   :type '(file))
 
 (defvar ink-comint-do-filter nil)
+
+(defun ink-play-knot ()
+  "Play the current ink buffer from the knot or stitch at point."
+  (interactive)
+  (ink-play t))
 
 (defun ink-play (&optional go-to-knot)
   "Play the current ink buffer.

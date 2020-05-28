@@ -8,8 +8,7 @@ language for writing interactive fiction developed by [[https://www.inklestudios
 - automatic indentation
 - jump to link inside an Ink file by clicking or =C-c C-o=
 - command to playtest the game from Emacs: =C-c C-c=
-  - start the game at a particular knot with the universal argument
-    =C-u C-c C-c=
+  - start the game at a given knot or stitch with =C-c C-p=
 - outline: fold knots and stitches as in org-mode, with =TAB= and
   =S-TAB=
 - error reporting using flycheck
