@@ -89,6 +89,16 @@
     (modify-syntax-entry ?\} ".   " st)
     (modify-syntax-entry ?\[ ".   " st)
     (modify-syntax-entry ?\] ".   " st)
+    (modify-syntax-entry ?0 ".   " st)
+    (modify-syntax-entry ?1 ".   " st)
+    (modify-syntax-entry ?2 ".   " st)
+    (modify-syntax-entry ?3 ".   " st)
+    (modify-syntax-entry ?4 ".   " st)
+    (modify-syntax-entry ?5 ".   " st)
+    (modify-syntax-entry ?6 ".   " st)
+    (modify-syntax-entry ?7 ".   " st)
+    (modify-syntax-entry ?8 ".   " st)
+    (modify-syntax-entry ?9 ".   " st)
     st)
   "Syntax table used while in `ink-mode'.")
 
@@ -289,7 +299,7 @@ to search."
   :group 'ink-faces)
 
 (defface ink-knot-face
-  '((t (:inherit font-lock-string-face)))
+  '((t (:inherit font-lock-function-name-face)))
   "Face for Ink knots: == * ==."
   :group 'ink-faces)
 
@@ -408,6 +418,7 @@ keyword."
     ("\\(^\\s-*~\\)" (0 font-lock-type-face)
      ("\\_<\\(?:return\\|temp\\|ref\\)\\_>" nil nil (0 font-lock-keyword-face))
      ("\\(\".*?\"\\)" nil nil (0 font-lock-string-face))
+     ("\\([[:word:]_]+\\)(.*)" nil nil (1 font-lock-function-name-face))
      ("\\_<\\(?1:.*?\\)\\s-*\\(?2:=\\)\\_>" nil nil
       (1 font-lock-variable-name-face))
      ("\\_<\\(SEED_RANDOM\\|RANDOM\\|CHOICE_COUNT\\|TURNS\\|TURNS_SINCE\\|INT\\|FLOOR\\|FLOAT\\)\\_>" nil nil (0 font-lock-builtin-face)))
