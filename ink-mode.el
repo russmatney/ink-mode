@@ -93,7 +93,7 @@
   "Syntax table used while in `ink-mode'.")
 
 
-;;; Regular Expressions =======================================================
+;;; Regular Expressions
 
 (defconst ink-regex-header
   "^\\s-*\\(?1:=+\\)\\s-*\\(?2:\\(?:function\\)?\\)\\s-*\\(?3:[[:word:]_.]+\\)\\s-*\\(?4:\\(?:([^)]*)\\)?\\)\\s-*\\(?5:=*\\)"
@@ -127,7 +127,7 @@ Group 2 matches a link text")
   "Regexp identifying Ink comments.")
 
 
-;;; Link following =======================================================
+;;; Link following
 
 (defun ink-follow-link-at-point ()
   "Open the current link.
@@ -281,7 +281,7 @@ to search."
     (message "Visiting %s" file-name)))
 
 
-;;; Faces =======================================================
+;;; Faces
 
 (defface ink-shadow-face
   '((t (:inherit shadow)))
@@ -319,7 +319,7 @@ to search."
   :group 'ink-faces)
 
 
-;;; Highlighting =======================================================
+;;; Highlighting
 
 (defun ink-fontify-diverts (last)
   "Add text properties to next divert from point to LAST."
@@ -422,7 +422,7 @@ keyword."
     ("^\\(?:\\s-*[*+]\\).*\\(\\[.*\\]\\)" 1 'ink-bracket-face)))
 
 
-;;; Indentation =======================================================
+;;; Indentation
 
 (defun ink-count-choices ()
   "Return number of choices or ties in line."
@@ -523,7 +523,7 @@ keyword."
       0)))
 
 
-;;; Ink-play =======================================================
+;;; Ink-play
 
 (defcustom ink-inklecate-path (executable-find "inklecate")
   "The path to the Inklecate executable."
@@ -596,7 +596,7 @@ directly at a knot... OUTPUT is the output to be filtered."
 (add-hook 'comint-preoutput-filter-functions #'ink-comint-filter-output)
 
 
-;;; Error checking with flycheck ==========================================================
+;;; Error checking with flycheck
 
 (when (boundp 'flycheck-checkers)
   (flycheck-def-executable-var ink-flycheck-checker "inklecate")
@@ -622,7 +622,7 @@ See URL `https://www.inklestudios.com/ink/'."
     :modes 'ink-mode))
 
 
-;;; Outline  ==========================================================
+;;; Outline
 
 ;; Outline functions were derived from markdown-mode.el, in turn
 ;; originally derived from from org.el.
@@ -773,7 +773,7 @@ appropriate, by calling `indent-for-tab-command'."
     2))
 
 
-;;; Mode Definition  ==========================================================
+;;; Mode Definition
 
 ;;;###autoload
 (define-derived-mode ink-mode prog-mode "Ink"
