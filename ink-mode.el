@@ -465,18 +465,18 @@ keyword."
 (defun ink-indent-choices ()
   "Indent choices and ties: add indentations between symbols."
   (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (while (re-search-forward "\\([*+-]\\)\\(\\s-*\\)" (line-end-position) t)
-      (if (looking-at ">")
-          (goto-char (line-end-position))
+  (let ((found-choice t))
+    (save-excursion
+      (beginning-of-line)
+      (while (and found-choice
+                  (re-search-forward
+                   "\\(?:[*+\\-]>?\\s-*\\)*?\\(?:[*+\\-]>?\\)\\(?1:\\s-*\\)"
+                   (line-end-position) t))
         (replace-match
          (if indent-tabs-mode
              "\t"
            (make-string (max 0 (- tab-width 1)) ? ))
-         nil nil nil 2))
-      (if (looking-at "^[:space:]-")
-          (goto-char (line-end-position))))))
+         nil nil nil 1)))))
 
 (defun ink-calculate-indentation ()
   "Find indent level at point."
