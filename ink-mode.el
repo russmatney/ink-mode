@@ -461,8 +461,8 @@ keyword."
   "Find indent level at point."
   (beginning-of-line)
   (let ((not-indented t) cur-indent)
-    (cond ((or (bobp) (looking-at "^\\s-*="))
-           ;; First line of buffer or knot or stitch
+    (cond ((looking-at "^\\s-*=")
+           ;; Knot or stitch
            (setq not-indented nil))
           ((and (looking-at "^\\s-*[*+]")
                 (not (looking-at ".*?\\*/")))
