@@ -429,8 +429,17 @@ keyword."
 
 (defun ink-indent-line ()
   "Indent current line of Ink code."
+  ;; The follow-indentation-p trick was taken from python-mode.el
+  (let ((follow-indentation-p
+         ;; Check if point is within indentation.
+         (and (<= (line-beginning-position) (point))
+              (>= (+ (line-beginning-position)
+                     (current-indentation))
+                  (point)))))
   (save-excursion
-    (indent-line-to (ink-calculate-indentation))))
+    (indent-line-to (ink-calculate-indentation)))
+  (when follow-indentation-p
+    (back-to-indentation))))
 
 (defun ink-indent-choices ()
   "Indent choices and ties: add indentations between symbols."
@@ -675,7 +684,6 @@ Otherwise, indent the current line or insert a tab, as
 appropriate, by calling `indent-for-tab-command'."
   (interactive "P")
   (cond
-
    ;; Global cycling
    ((eq arg t)
     (cond
