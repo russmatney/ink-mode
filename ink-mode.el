@@ -209,7 +209,7 @@ to search."
   "Go to the header or label matching the link at point."
   (let (position
         title title-list
-        knot-name stitch-name
+        knot-name
         stitch-start stitch-end
         knot-start knot-end)
     (font-lock-ensure)
@@ -223,7 +223,6 @@ to search."
             (if (= (ink-outline-level) 2)
                 ;; In stitch
                 (progn
-                  (setq stitch-name (ink-get-knot-name))
                   (setq stitch-start (point))
                   (save-excursion
                     (ink-end-of-subtree t)
@@ -406,8 +405,7 @@ keyword."
      font-lock-variable-name-face)
 
     ;; Conditions
-    ("\\({.*?:\\).*?}" 1 font-lock-constant-face)
-    ("^[[:space:]*+]+\\({.*?}\\)" 1 font-lock-constant-face)
+    ("{.*?\\(:\\).*?}" 1 font-lock-constant-face)
 
     ;; Alternatives
     ("\\(?:^\\|[^\\\\]\\)\\([{|}]+\\)" 1 font-lock-constant-face)
@@ -471,7 +469,6 @@ keyword."
           (re-search-forward
            "\\(?:[*+\\-]>?\\s-*\\)*?\\(?:[*+\\-]\\(?1:>\\)?\\)\\(?2:\\s-*\\)"
            (line-end-position) t)
-        (when (match-beginning 1) (print "space"))
         (replace-match
          (if (match-beginning 1) " "
            (if indent-tabs-mode
@@ -479,52 +476,92 @@ keyword."
              (make-string (max 0 (- tab-width 1)) ? )))
          nil nil nil 2)))))
 
+(defun ink-calculate-bracket-indentation ()
+  "Find the level of bracket and condition blocks.
+Opening brackets indent, as do conditions.
+Closing brackets dedent."
+  (let (
+        (bracket-difference 0)
+        (indentation-list (list))
+        (start-pos) (on-last-line))
+    (save-excursion
+      ;; Go back to header or buffer start
+      (setq start-pos (point))
+      (or
+       (ignore-errors (outline-back-to-heading t))
+       (goto-char (point-min)))
+
+      (while (not on-last-line)
+        ;; Exit condition: on starting line
+        (when (= (line-number-at-pos)
+                 (line-number-at-pos start-pos))
+          (setq on-last-line t))
+
+        ;; Count the difference between opening and closing brackets
+        (when (or
+               (looking-at "^\\s-*{.*")
+               (looking-at ".*}.*$"))
+          (setq bracket-difference
+                (-
+                 (count-matches
+                  "\\({\\)"
+                  (line-beginning-position)
+                  (line-end-position))
+                 (count-matches
+                  "\\(}\\)"
+                  (line-beginning-position)
+                  (line-end-position)))))
+
+        ;; Increase indent level on opening bracket
+        (when
+            (and (looking-at "^\\s-*{.*")
+                 (> bracket-difference 0))
+          (unless on-last-line
+            (push 'b indentation-list)))
+
+        ;; Increase indent on condition
+        (when (looking-at "^\\s-*-.*:\\s-*$")
+          (let (previous-indent)
+            (setq previous-indent (nth 0 indentation-list))
+            (if on-last-line
+                (when (eq previous-indent 'c)
+                  (pop indentation-list))
+              (unless (eq previous-indent 'c)
+                (push 'c indentation-list)))))
+
+        ;; Decrease indent level on closing bracket
+        (when
+            (and (looking-at ".*}.*$") (< bracket-difference 0))
+
+          (let (previous-indent)
+            (setq previous-indent (nth 0 indentation-list))
+            ;; Dedent if previous indent was a bracket in a list
+            (when (eq previous-indent 'c)
+              ;; Check whether next line also opens a bracket, in which case
+              ;; don't dedent yet
+              (save-excursion
+                (goto-char start-pos)
+                (forward-line 1)
+                (unless (looking-at "^\\s-*{.*")
+                  (pop indentation-list))))
+            (pop indentation-list)))
+
+        (unless (bobp)
+          (forward-line 1))))
+    indentation-list))
+
 (defun ink-calculate-indentation ()
   "Find indent level at point."
   (beginning-of-line)
-  (let ((indented nil) (cur-indent 0) (at-knot nil)
-        (bracket-level 0) (condition-level 0))
-    ;; Knot or stitch
-    (when (looking-at "^\\s-*=")
-      (setq indented t)
-      (setq at-knot t))
-    ;; Check if in a {} block. Opening brackets indent,
-    ;; closing brackets dedent.
+  (let ((indented nil) (cur-indent 0)
+        (bracket-level 0))
+
+    ;; Knot or stitch: indent at 0
+    (when (looking-at ink-regex-header)
+      (setq indented t))
+
     (when (not indented)
-      ;; first-run is used to indent closing brackets differently
-      (let ((first-run t))
-        (save-excursion
-          (while (not at-knot)
-            ;; Go up until we find the beginning of the knot or stitch
-            (cond
-             ((or (bobp) (looking-at "^\\s-*="))
-              (setq at-knot t))
-             ;; Increase indent level on opening bracket
-             ((and (looking-at "^\\s-*{")
-                   (not (looking-at ".*}\\s-*$")))
-              (setq bracket-level (1+ bracket-level))
-              (save-excursion
-                ;; Check whether previous line was a condition
-                (forward-line -1)
-                (when (looking-at "^\\s-*-\\s-*.*:\\s-*$")
-                  (setq condition-level (1+ condition-level)))))
-             ;; Decrease indent level on opening bracket
-             ((and (looking-at ".*}\\s-*$")
-                   (not (looking-at "^\\s-*{")))
-              (setq bracket-level (1- bracket-level))
-              (unless first-run
-                (save-excursion
-                  ;; Check whether line before matching bracket was a
-                  ;; condition, e.g.
-                  ;; - else:
-                  (beginning-of-line)
-                  (search-forward "}")
-                  (ignore-errors (backward-list))
-                  (forward-line -1)
-                  (when (looking-at "^\\s-*-\\s-*.*:\\s-*$")
-                    (setq condition-level (1- condition-level)))))))
-            (forward-line -1)
-            (setq first-run nil)))))
+      (setq bracket-level (length (ink-calculate-bracket-indentation))))
 
     (cond
      ;; Empty lines
@@ -536,23 +573,19 @@ keyword."
      ((and (looking-at "^\\s-*[*+]")
            (not (looking-at ".*?\\*/")))
       (setq cur-indent (ink-count-choices))
-      (setq indented t)
-      )
+      (setq indented t))
 
      ;; Tie -
      ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
            (not (looking-at ".*?\\*/")))
       (setq cur-indent (- (ink-count-choices) 1))
-      (setq indented t)
-      )
+      (setq indented t))
 
      ;; Brackets
-     ((and (looking-at "^\\s-*{")
-           (not (looking-at ".*}\\s-*$")))
-      (setq cur-indent -1)
+     ((looking-at "^\\s-*{")
+      (setq cur-indent 0)
       (setq indented t))
-     ((and (looking-at ".*}\\s-*$")
-           (not (looking-at "^\\s-*{")))
+     ((looking-at ".*}\\s-*$")
       (setq cur-indent 0)
       (setq indented t))
 
@@ -567,9 +600,9 @@ keyword."
               (while (not found-not-comment)
                 (forward-line 1)
                 (if (or
-                         (= (line-number-at-pos)
-                            (line-number-at-pos (point-max)))
-                            (looking-at ink-regex-comment))
+                     (= (line-number-at-pos)
+                        (line-number-at-pos (point-max)))
+                     (looking-at ink-regex-comment))
                     (setq found-not-comment t)
                   ;; Found something that’s not a comment
                   (progn
@@ -588,21 +621,29 @@ keyword."
               (setq indented t))
              ;; Tie -
              ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
-                   (not (looking-at ".*?\\*/")))
+                   (not (looking-at ".*?\\*/"))
+                   (not (looking-at ".*:\\s-*$")))
               (setq cur-indent (- (* (ink-count-choices) 2) 1))
               (setq indented t))
-             ;; Brackets: skip them
+             ;; Condition - ... :
+             ((looking-at "^\\s-*-.*:")
+              (setq cur-indent 0)
+              (setq indented t))
+             ;; Closing brackets: skip them
              ((and (looking-at ".*}\\s-*$")
                    (not (looking-at "^\\s-*{")))
               (beginning-of-line)
               ;; Check whether line matching bracket was a condition
               (search-forward "}")
-              (ignore-errors (backward-list)))
+              (backward-list 1))
              ((or (bobp) (looking-at "^\\s-*="))
               ;; First line of buffer, knot or stitch
               (setq indented t))))))))
     (if cur-indent
-        (max 0 (* (+ cur-indent (+ bracket-level condition-level)) tab-width))
+        (progn
+          (max 0
+               (* (+ cur-indent bracket-level)
+                  tab-width)))
       0)))
 
 
