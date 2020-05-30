@@ -454,7 +454,9 @@ keyword."
                      (current-indentation))
                   (point)))))
     (save-excursion
-      (indent-line-to (ink-calculate-indentation)))
+      (indent-line-to (max 0
+                           (* (ink-calculate-indentation)
+                              tab-width))))
     (ink-indent-choices)
     (when follow-indentation-p (back-to-indentation))))
 
@@ -485,8 +487,8 @@ Closing brackets dedent."
         (indentation-list (list))
         (start-pos) (on-last-line))
     (save-excursion
-      ;; Go back to header or buffer start
       (setq start-pos (point))
+      ;; Go back to header or buffer start
       (or
        (ignore-errors (outline-back-to-heading t))
        (goto-char (point-min)))
@@ -546,8 +548,7 @@ Closing brackets dedent."
                   (pop indentation-list))))
             (pop indentation-list)))
 
-        (unless (bobp)
-          (forward-line 1))))
+        (forward-line 1)))
     indentation-list))
 
 (defun ink-calculate-indentation ()
@@ -590,8 +591,8 @@ Closing brackets dedent."
       (setq indented t))
 
      ((not indented)
-      ;; If not choice, tie, knot, stitch or first line
       (save-excursion
+        ;; If not choice, tie, knot, stitch or first line
         (if (looking-at ink-regex-comment)
             ;; Comment // or TODO: look down until we find
             ;; something which isn't a comment, then find
@@ -599,52 +600,46 @@ Closing brackets dedent."
             (let ((found-not-comment nil))
               (while (not found-not-comment)
                 (forward-line 1)
-                (if (or
-                     (= (line-number-at-pos)
-                        (line-number-at-pos (point-max)))
-                     (looking-at ink-regex-comment))
-                    (setq found-not-comment t)
-                  ;; Found something that’s not a comment
-                  (progn
-                    (setq cur-indent (ink-calculate-indentation))
-                    (setq indented t)
-                    (setq found-not-comment t)))))
+                ;; Found something that’s not a comment
+                (when (or (= (line-number-at-pos)
+                             (line-number-at-pos (point-max)))
+                          (not (looking-at ink-regex-comment)))
+                  (setq cur-indent (- (ink-calculate-indentation)
+                                      bracket-level))
+                  (setq indented t)
+                  (setq found-not-comment t)))))
 
-          ;; Not a comment
-          (while (not indented)
-            ;; Go up until we find something
-            (forward-line -1)
-            (cond
-             ;; Choice * +
-             ((looking-at "^\\s-*[*+]")
-              (setq cur-indent (* (ink-count-choices) 2))
-              (setq indented t))
-             ;; Tie -
-             ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
-                   (not (looking-at ".*?\\*/"))
-                   (not (looking-at ".*:\\s-*$")))
-              (setq cur-indent (- (* (ink-count-choices) 2) 1))
-              (setq indented t))
-             ;; Condition - ... :
-             ((looking-at "^\\s-*-.*:")
-              (setq cur-indent 0)
-              (setq indented t))
-             ;; Closing brackets: skip them
-             ((and (looking-at ".*}\\s-*$")
-                   (not (looking-at "^\\s-*{")))
-              (beginning-of-line)
-              ;; Check whether line matching bracket was a condition
-              (search-forward "}")
-              (backward-list 1))
-             ((or (bobp) (looking-at "^\\s-*="))
-              ;; First line of buffer, knot or stitch
-              (setq indented t))))))))
-    (if cur-indent
-        (progn
-          (max 0
-               (* (+ cur-indent bracket-level)
-                  tab-width)))
-      0)))
+        ;; Not a comment
+        (while (not indented)
+          ;; Go up until we find something
+          (forward-line -1)
+          (cond
+           ;; Choice * +
+           ((looking-at "^\\s-*[*+]")
+            (setq cur-indent (* (ink-count-choices) 2))
+            (setq indented t))
+           ;; Tie -
+           ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
+                 (not (looking-at ".*?\\*/"))
+                 (not (looking-at ".*:\\s-*$")))
+            (setq cur-indent (- (* (ink-count-choices) 2) 1))
+            (setq indented t))
+           ;; Condition - ... :
+           ((looking-at "^\\s-*-.*:")
+            (setq cur-indent 0)
+            (setq indented t))
+           ;; Closing brackets: skip them
+           ((and (looking-at ".*}\\s-*$")
+                 (not (looking-at "^\\s-*{")))
+            (beginning-of-line)
+            ;; Check whether line matching bracket was a condition
+            (search-forward "}")
+            (backward-list 1))
+           ((or (bobp) (looking-at "^\\s-*="))
+            ;; First line of buffer, knot or stitch
+            (setq indented t)))))))
+
+    (+ cur-indent bracket-level)))
 
 
 ;;; Ink-play
