@@ -478,6 +478,18 @@ keyword."
              (make-string (max 0 (- tab-width 1)) ? )))
          nil nil nil 2)))))
 
+(defun ink-calculate-bracket-difference ()
+  "Count the difference between opening and closing brackets."
+  (-
+   (count-matches
+    "\\({\\)"
+    (line-beginning-position)
+    (line-end-position))
+   (count-matches
+    "\\(}\\)"
+    (line-beginning-position)
+    (line-end-position))))
+
 (defun ink-calculate-bracket-indentation ()
   "Find the level of bracket and condition blocks.
 Opening brackets indent, as do conditions.
@@ -499,20 +511,10 @@ Closing brackets dedent."
                  (line-number-at-pos start-pos))
           (setq on-last-line t))
 
-        ;; Count the difference between opening and closing brackets
         (when (or
                (looking-at "^\\s-*{.*")
                (looking-at ".*}.*$"))
-          (setq bracket-difference
-                (-
-                 (count-matches
-                  "\\({\\)"
-                  (line-beginning-position)
-                  (line-end-position))
-                 (count-matches
-                  "\\(}\\)"
-                  (line-beginning-position)
-                  (line-end-position)))))
+          (setq bracket-difference (ink-calculate-bracket-difference)))
 
         ;; Increase indent level on opening bracket
         (when
@@ -542,7 +544,6 @@ Closing brackets dedent."
               ;; Check whether next line also opens a bracket, in which case
               ;; don't dedent yet
               (save-excursion
-                (goto-char start-pos)
                 (forward-line 1)
                 (unless (looking-at "^\\s-*{.*")
                   (pop indentation-list))))
@@ -578,20 +579,13 @@ Closing brackets dedent."
 
      ;; Tie -
      ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
-           (not (looking-at ".*?\\*/")))
+           (not (looking-at ".*?\\*/")) ;; comments
+           )
       (setq cur-indent (- (ink-count-choices) 1))
-      (setq indented t))
+      (setq indented t)))
 
-     ;; Brackets
-     ((looking-at "^\\s-*{")
-      (setq cur-indent 0)
-      (setq indented t))
-     ((looking-at ".*}\\s-*$")
-      (setq cur-indent 0)
-      (setq indented t))
-
-     ((not indented)
-      (save-excursion
+     (when (not indented)
+       (save-excursion
         ;; If not choice, tie, knot, stitch or first line
         (if (looking-at ink-regex-comment)
             ;; Comment // or TODO: look down until we find
@@ -621,7 +615,7 @@ Closing brackets dedent."
            ;; Tie -
            ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
                  (not (looking-at ".*?\\*/"))
-                 (not (looking-at ".*:\\s-*$")))
+                 (not (looking-at ".*:")))
             (setq cur-indent (- (* (ink-count-choices) 2) 1))
             (setq indented t))
            ;; Condition - ... :
@@ -637,9 +631,9 @@ Closing brackets dedent."
             (backward-list 1))
            ((or (bobp) (looking-at "^\\s-*="))
             ;; First line of buffer, knot or stitch
-            (setq indented t)))))))
+            (setq indented t))))))
 
-    (+ cur-indent bracket-level)))
+     (+ cur-indent bracket-level)))
 
 
 ;;; Ink-play
