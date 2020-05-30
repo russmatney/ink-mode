@@ -472,11 +472,16 @@ keyword."
            "\\(?:[*+\\-]>?\\s-*\\)*?\\(?:[*+\\-]\\(?1:>\\)?\\)\\(?2:\\s-*\\)"
            (line-end-position) t)
         (replace-match
-         (if (match-beginning 1) " "
+         (if (match-beginning 1) ""
            (if indent-tabs-mode
                "\t"
              (make-string (max 0 (- tab-width 1)) ? )))
-         nil nil nil 2)))))
+         nil nil nil 2))
+      ;; Add space after diverts and tunnels
+      (beginning-of-line)
+      (re-search-forward "\\(?1:\\(?:->\\)+\\)\\(?2:\\s-*\\)"
+       (line-end-position) t)
+      (replace-match " " nil nil nil 2))))
 
 (defun ink-calculate-bracket-difference ()
   "Count the difference between opening and closing brackets."
