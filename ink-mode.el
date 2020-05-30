@@ -455,25 +455,29 @@ keyword."
               (>= (+ (line-beginning-position)
                      (current-indentation))
                   (point)))))
-  (save-excursion
-    (indent-line-to (ink-calculate-indentation)))
-  (when follow-indentation-p (back-to-indentation))))
+    (save-excursion
+      (indent-line-to (ink-calculate-indentation)))
+    (ink-indent-choices)
+    (when follow-indentation-p (back-to-indentation))))
 
 (defun ink-indent-choices ()
   "Indent choices and ties: add indentations between symbols."
   (interactive)
-  (let ((found-choice t))
-    (save-excursion
-      (beginning-of-line)
-      (while (and found-choice
-                  (re-search-forward
-                   "\\(?:[*+\\-]>?\\s-*\\)*?\\(?:[*+\\-]>?\\)\\(?1:\\s-*\\)"
-                   (line-end-position) t))
+  (save-excursion
+    (beginning-of-line)
+    (when (and (looking-at "^\\s-*[*+\\-]")
+               (not (looking-at ".*\\*/")))
+      (while
+          (re-search-forward
+           "\\(?:[*+\\-]>?\\s-*\\)*?\\(?:[*+\\-]\\(?1:>\\)?\\)\\(?2:\\s-*\\)"
+           (line-end-position) t)
+        (when (match-beginning 1) (print "space"))
         (replace-match
-         (if indent-tabs-mode
-             "\t"
-           (make-string (max 0 (- tab-width 1)) ? ))
-         nil nil nil 1)))))
+         (if (match-beginning 1) " "
+           (if indent-tabs-mode
+               "\t"
+             (make-string (max 0 (- tab-width 1)) ? )))
+         nil nil nil 2)))))
 
 (defun ink-calculate-indentation ()
   "Find indent level at point."
@@ -523,19 +527,24 @@ keyword."
             (setq first-run nil)))))
 
     (cond
+     ;; Empty lines
+     ((looking-at "^\\s-*$")
+      (setq cur-indent 0)
+      (setq indented t))
+
      ;; Choice * +
      ((and (looking-at "^\\s-*[*+]")
            (not (looking-at ".*?\\*/")))
       (setq cur-indent (ink-count-choices))
       (setq indented t)
-      (ink-indent-choices))
+      )
 
      ;; Tie -
      ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
            (not (looking-at ".*?\\*/")))
       (setq cur-indent (- (ink-count-choices) 1))
       (setq indented t)
-      (ink-indent-choices))
+      )
 
      ;; Brackets
      ((and (looking-at "^\\s-*{")
@@ -557,12 +566,18 @@ keyword."
             (let ((found-not-comment nil))
               (while (not found-not-comment)
                 (forward-line 1)
-                (unless (looking-at ink-regex-comment)
+                (if (or
+                         (= (line-number-at-pos)
+                            (line-number-at-pos (point-max)))
+                            (looking-at ink-regex-comment))
+                    (setq found-not-comment t)
                   ;; Found something that’s not a comment
                   (progn
                     (setq cur-indent (ink-calculate-indentation))
                     (setq indented t)
                     (setq found-not-comment t)))))
+
+          ;; Not a comment
           (while (not indented)
             ;; Go up until we find something
             (forward-line -1)
@@ -848,7 +863,6 @@ appropriate, by calling `indent-for-tab-command'."
   "Major mode for editing interactive fiction using the Ink
   scripting language."
   :syntax-table ink-mode-syntax-table
-  (setq tab-width 2)
 
   ;; Syntax
   (setq-local comment-start "// ")
