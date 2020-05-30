@@ -240,42 +240,42 @@ to search."
                 (ink-end-of-subtree t)
                 (setq knot-end (point))))))
 
-    ;; Look for header
-    (setq position (ink-find-header title))
-    ;; Look for stitch with that name in current knot:
-    (if (not position)
-        (setq position (ink-find-header (concat knot-name "." title))))
+        ;; Look for header
+        (setq position (ink-find-header title))
+        ;; Look for stitch with that name in current knot:
+        (if (not position)
+            (setq position (ink-find-header (concat knot-name "." title))))
 
-    ;; Look for labels:
-    (setq title-list (split-string title "\\."))
-    (unless position
-      (cond ((or (= 1 (length title-list))
-                 (= 2 (length title-list)))
-             ;; Title has one or two element;
-             ;; look in order in stitch, knot and outside
-             (if (and (not position)
-                      stitch-start)
-                 (setq position
-                       (ink-find-label title-list stitch-start stitch-end)))
-             (if (and (not position)
-                      knot-start)
-                 (setq position
-                       (ink-find-label title-list knot-start knot-end)))
-             (if (not position)
-                 (setq position
-                       (ink-find-label title-list))))
+        ;; Look for labels:
+        (setq title-list (split-string title "\\."))
+        (unless position
+          (cond ((or (= 1 (length title-list))
+                     (= 2 (length title-list)))
+                 ;; Title has one or two element;
+                 ;; look in order in stitch, knot and outside
+                 (if (and (not position)
+                          stitch-start)
+                     (setq position
+                           (ink-find-label title-list stitch-start stitch-end)))
+                 (if (and (not position)
+                          knot-start)
+                     (setq position
+                           (ink-find-label title-list knot-start knot-end)))
+                 (if (not position)
+                     (setq position
+                           (ink-find-label title-list))))
 
-            ;; Title has three elements;
-            ;; look as knot.stitch.label in whole buffer
-            ((and (not position)
-                  (= 3 (length title-list)))
-             (setq position (ink-find-label title-list)))))
+                ;; Title has three elements;
+                ;; look as knot.stitch.label in whole buffer
+                ((and (not position)
+                      (= 3 (length title-list)))
+                 (setq position (ink-find-label title-list)))))
 
-    (if position (progn
-                   (message "Jumping to %s" title)
-                   (goto-char position)
-                   (ignore-errors (outline-show-subtree)))
-      (user-error "Link `%s' not found. Is it in another file?" title))))))
+        (if position (progn
+                       (message "Jumping to %s" title)
+                       (goto-char position)
+                       (ignore-errors (outline-show-subtree)))
+          (user-error "Link `%s' not found. Is it in another file?" title))))))
 
 (defun ink-follow-file-link ()
   "Find file matching the link at point."
