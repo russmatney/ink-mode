@@ -6,7 +6,7 @@
 ;; Author: Erik Sjöstrand, Damien Picard
 ;; URL: http://github.com/Kungsgeten/ink-mode
 ;; Version: 0.2
-;; Package-Version: 20200522
+;; Package-Version: 20200530
 ;; Keywords: languages, wp, hypermedia
 ;; Package-Requires: ((emacs "25.1"))
 
