@@ -502,8 +502,10 @@ Closing brackets dedent."
   (let (
         (bracket-difference 0)
         (indentation-list (list))
-        (start-pos) (on-last-line))
+        (start-pos) (on-last-line)
+        looking-at-opening looking-at-closing)
     (save-excursion
+      (beginning-of-line)
       (setq start-pos (point))
       ;; Go back to header or buffer start
       (or
@@ -512,19 +514,25 @@ Closing brackets dedent."
 
       (while (not on-last-line)
         ;; Exit condition: on starting line
-        (when (= (line-number-at-pos)
-                 (line-number-at-pos start-pos))
+        (when (= (point)
+                 start-pos)
           (setq on-last-line t))
 
+        (setq
+         looking-at-opening (looking-at "^\\s-*{.*")
+         looking-at-closing (looking-at ".*}.*$"))
+
         (when (or
-               (looking-at "^\\s-*{.*")
-               (looking-at ".*}.*$"))
+               looking-at-opening
+               looking-at-closing)
           (setq bracket-difference (ink-calculate-bracket-difference)))
 
         ;; Increase indent level on opening bracket
         (when
-            (and (looking-at "^\\s-*{.*")
-                 (> bracket-difference 0))
+            (and
+             (> bracket-difference 0)
+             looking-at-opening
+          )
           (unless on-last-line
             (push 'b indentation-list)))
 
@@ -540,7 +548,9 @@ Closing brackets dedent."
 
         ;; Decrease indent level on closing bracket
         (when
-            (and (looking-at ".*}.*$") (< bracket-difference 0))
+            (and
+             (< bracket-difference 0)
+             looking-at-closing)
 
           (let (previous-indent)
             (setq previous-indent (nth 0 indentation-list))
@@ -584,8 +594,7 @@ Closing brackets dedent."
 
      ;; Tie -
      ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
-           (not (looking-at ".*?\\*/")) ;; comments
-           )
+           (not (looking-at ".*?\\*/"))) ;; comments
       (setq cur-indent (- (ink-count-choices) 1))
       (setq indented t)))
 
