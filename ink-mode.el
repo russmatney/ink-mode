@@ -131,7 +131,8 @@ Group 1 matches an INCLUDE keyword
 Group 2 matches a link text")
 
 (defconst ink-regex-comment
-  "^\\s-*\\(TODO\\|//\\|.*?/\\*\\|.*?\\*/\\)"
+  ;; "^\\s-*\\(TODO\\|//\\|.*?/\\*\\|.*?\\*/\\)"
+  "^\\s-*\\(TODO\\|//\\)"
   "Regexp identifying Ink comments.")
 
 
@@ -533,8 +534,7 @@ Closing brackets dedent."
         (when
             (and
              (> bracket-difference 0)
-             looking-at-opening
-          )
+             looking-at-opening)
           (unless on-last-line
             (push 'b indentation-list)))
 
@@ -573,7 +573,34 @@ Closing brackets dedent."
   "Find indent level at point."
   (beginning-of-line)
   (let ((indented nil) (cur-indent 0)
-        (bracket-level 0))
+        (bracket-level 0)
+        start-pos)
+    (setq start-pos (point))
+
+    ;; Multiline comments
+    (let (comment-start comment-end)
+      (save-excursion
+        (cond ((looking-at ".*\\(?1:/\\*\\)")
+               ;; Comment starting at line
+               (setq comment-start (match-beginning 1))
+               (setq start-pos (match-end 1)))
+              ((re-search-backward "/\\*" nil t)
+               ;; Comment before
+               (setq comment-start (point))))
+        (when comment-start
+          (when (re-search-forward "\\*/" nil t)
+            ;; Find end of comment
+            (setq comment-end (point))
+            (when (and (> comment-end start-pos)
+                       (= comment-start
+                          (progn (re-search-backward "/\\*" nil t)
+                                 (point))))
+              ;; Inside comment: the end we found is not that of a
+              ;; later comment
+              (goto-char comment-end)
+              (forward-line 1)
+              (setq cur-indent (ink-calculate-indentation))
+              (setq indented t))))))
 
     ;; Knot or stitch: indent at 0
     (when (looking-at ink-regex-header)
