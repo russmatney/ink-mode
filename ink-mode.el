@@ -127,7 +127,7 @@ Group 3 matches the spaces inbetween.")
 
 (defconst ink-regex-include
   "^\\s-*\\(?1:INCLUDE\\)\\s-*\\(?2:.*?\\)\\s-*$"
-  "Regexp identifying Ink diverts.
+  "Regexp identifying Ink includes.
 Group 1 matches an INCLUDE keyword
 Group 2 matches a link text")
 
@@ -629,8 +629,8 @@ Closing brackets dedent."
       (setq cur-indent (- (ink-count-choices) 1))
       (setq indented t)))
 
-     (when (not indented)
-       (save-excursion
+    (when (not indented)
+      (save-excursion
         ;; If not choice, tie, knot, stitch or first line
         (if (looking-at ink-regex-comment)
             ;; Comment // or TODO: look down until we find
@@ -678,7 +678,7 @@ Closing brackets dedent."
             ;; First line of buffer, knot or stitch
             (setq indented t))))))
 
-     (+ cur-indent bracket-level)))
+    (+ cur-indent bracket-level)))
 
 
 ;;; Ink-play
