@@ -104,7 +104,7 @@
 ;;; Regular Expressions
 
 (defconst ink-regex-header
-  "^\\s-*\\(?1:=+\\)\\s-*\\(?2:\\(?:function\\)?\\)\\s-*\\(?3:[[:word:]_.]+\\)\\s-*\\(?4:\\(?:([^)]*)\\)?\\)\\s-*\\(?5:=*\\)"
+  "^\\s-*\\(?1:=+\\)\\s-*\\(?2:\\(?:function\\)?\\)\\s-*\\(?3:[[:alnum:]_]+\\)\\s-*\\(?4:\\(?:([^)]*)\\)?\\)\\s-*\\(?5:=*\\)"
   "Regexp identifying Ink headers.
 Group 1 matches the equal signs preceding the title.
 Group 2 matches the function keyword.
@@ -113,16 +113,17 @@ Group 4 matches the function arguments.
 Group 5 matches the optional equal signs following the header.")
 
 (defconst ink-regex-label
-  "^\\(?:\\s-*[*+\\-]\\)+\\s-*\\(?1:(\\(?2:[[:word:]_]+\\))\\)"
-  "Regexp identifying Ink diverts.
+  "^\\(?:\\s-*[*+\\-]\\)+\\s-*\\(?1:(\\(?2:[[:alnum:]_]+\\))\\)"
+  "Regexp identifying Ink labels.
 Group 1 matches a label including parentheses.
 Group 2 matches a label excluding parentheses.")
 
 (defconst ink-regex-divert
-  "\\(?1:->\\|<-\\)\\s-*\\(?2:[[:word:]_.]*\\)?"
+  "\\(?1:->\\|<-\\)\\(?3:\\s-*\\)\\(?2:[[:alnum:]_.]*\\)"
   "Regexp identifying Ink diverts.
 Group 1 matches an left or right arrow.
-Group 2 matches a link text")
+Group 2 matches a link text.
+Group 3 matches the spaces inbetween.")
 
 (defconst ink-regex-include
   "^\\s-*\\(?1:INCLUDE\\)\\s-*\\(?2:.*?\\)\\s-*$"
@@ -458,7 +459,8 @@ keyword."
       (indent-line-to (max 0
                            (* (ink-calculate-indentation)
                               tab-width))))
-    (ink-indent-choices)
+    (unless (eq last-command this-command)
+      (ink-indent-choices))
     (when follow-indentation-p (back-to-indentation))))
 
 (defun ink-indent-choices ()
@@ -929,6 +931,39 @@ appropriate, by calling `indent-for-tab-command'."
     2))
 
 
+;;; Autocomplete
+
+(defun ink-get-headers-and-labels ()
+  "Return a list of all header and label hierarchies."
+  (let ((headers-labels (list "END" "DONE")) match)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward ink-regex-header nil t)
+        (when (setq match (match-string-no-properties 3))
+          (push match headers-labels)
+          (push (ink-get-knot-name) headers-labels)
+          ))
+      (goto-char (point-min))
+      (while (re-search-forward ink-regex-label nil t)
+        (when (match-string-no-properties 2)
+          (push match headers-labels)
+          (push (concat (ink-get-knot-name) "." match) headers-labels))))
+    (sort (delete-dups headers-labels) #'string<)))
+
+(defun ink-completion-at-point ()
+  "Return completion table for entity at point.
+Completion is only provided for diverts."
+  (when (and (thing-at-point-looking-at ink-regex-divert)
+             (<= (match-beginning 3)
+                 (point)))
+    (when (> (match-beginning 2)
+             (point))
+      (goto-char (match-end 2)))
+    (list (match-beginning 2) (match-end 2)
+          (completion-table-dynamic
+           (lambda (_) (ink-get-headers-and-labels))))))
+
+
 ;;; Mode Definition
 
 ;;;###autoload
@@ -948,6 +983,11 @@ appropriate, by calling `indent-for-tab-command'."
   ;; Indent
   (setq-local paragraph-ignore-fill-prefix t)
   (setq-local indent-line-function #'ink-indent-line)
+
+  ;; Complete
+  (setq-local completion-cycle-threshold t)
+  (add-hook 'completion-at-point-functions
+            #'ink-completion-at-point nil 'local)
 
   ;; Outline
   (setq-local outline-regexp ink-regex-header)
