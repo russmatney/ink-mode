@@ -948,7 +948,7 @@ appropriate, by calling `indent-for-tab-command'."
           ))
       (goto-char (point-min))
       (while (re-search-forward ink-regex-label nil t)
-        (when (match-string-no-properties 2)
+        (when (setq match (match-string-no-properties 2))
           (push match headers-labels)
           (push (concat (ink-get-knot-name) "." match) headers-labels))))
     (sort (delete-dups headers-labels) #'string<)))
