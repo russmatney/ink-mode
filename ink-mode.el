@@ -459,8 +459,7 @@ keyword."
       (indent-line-to (max 0
                            (* (ink-calculate-indentation)
                               tab-width))))
-    (unless (eq last-command this-command)
-      (ink-indent-choices))
+    (ink-indent-choices)
     (when follow-indentation-p (back-to-indentation))))
 
 (defun ink-indent-choices ()
@@ -470,7 +469,7 @@ keyword."
     (beginning-of-line)
     (when (and (looking-at "^\\s-*[*+\\-]")
                (not (looking-at ".*\\*/"))) ;; Comments
-      (let (found-not-choice found-divert)
+      (let (found-not-choice found-divert replacement-string)
         (while (and (not found-not-choice)
                     (re-search-forward
                      "\\(?1:[*+\\-]\\)\\(?2:\\s-*\\)"
@@ -482,11 +481,15 @@ keyword."
                   ((looking-at "[^*+\\-]")
                    (setq found-not-choice t))))
           (unless found-divert
-            (replace-match
-             (if indent-tabs-mode
-                 "\t"
-               (make-string (max 0 (- tab-width 1)) ? ))
-             nil nil nil 2)))))))
+            (setq replacement-string
+                  (if indent-tabs-mode
+                      "\t"
+                    (make-string (max 0 (- tab-width 1)) ? )))
+            ;; Compare string to be replaced with replacement, and do
+            ;; it only if different. This avoid making changes which
+            ;; disable auto-complete.
+            (when (not (equal replacement-string (match-string-no-properties 2)))
+              (replace-match replacement-string nil nil nil 2))))))))
 
 (defun ink-calculate-bracket-difference ()
   "Count the difference between opening and closing brackets."
