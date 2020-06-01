@@ -691,7 +691,7 @@ Closing brackets dedent."
   :group 'ink
   :type '(file))
 
-(defvar ink-comint-do-filter nil)
+(defvar-local ink-comint-do-filter nil)
 
 (defun ink-play-knot ()
   "Play the current ink buffer from the knot or stitch at point."
@@ -746,7 +746,7 @@ rest."
     result))
 
 (defun ink-comint-filter-output (output)
-  "Comint output filter for ink-play.
+  "Comint output filter for `ink-play'.
 This whole filter is just so that the first output of comint
 doesn't print before the first important line when starting
 directly at a knot... OUTPUT is the output to be filtered."
@@ -788,8 +788,8 @@ See URL `https://www.inklestudios.com/ink/'."
 ;; Outline functions were derived from markdown-mode.el, in turn
 ;; originally derived from from org.el.
 
-(defvar ink-cycle-global-status 1)
-(defvar ink-cycle-subtree-status nil)
+(defvar-local ink-cycle-global-status 1)
+(defvar-local ink-cycle-subtree-status nil)
 
 (defalias 'ink-end-of-heading 'outline-end-of-heading)
 
