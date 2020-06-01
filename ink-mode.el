@@ -3,10 +3,12 @@
 ;; Copyright (C) 2016-2020 Erik Sjöstrand, Damien Picard, and
 ;; ink-mode contributors (see the commit log for details).
 
-;; Author: Erik Sjöstrand, Damien Picard
+;; Author: Erik Sjöstrand
+;;         Damien Picard
+;; Maintainer: Damien Picard
 ;; URL: http://github.com/Kungsgeten/ink-mode
 ;; Version: 0.2
-;; Package-Version: 20200530
+;; Package-Version: 20200601
 ;; Keywords: languages, wp, hypermedia
 ;; Package-Requires: ((emacs "25.1"))
 
@@ -25,15 +27,18 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 ;;; Commentary:
 
-;; `ink-mode' provides basic syntax highlighting and indentation for
-;; the Ink scripting language, developed by Inkle Studios. There's
-;; also a command `ink-play' to playtest your story from Emacs (bound
-;; to C-c C-c by default).
+;; `ink-mode' provides syntax highlighting and indentation for
+;; the Ink scripting language, developed by Inkle Studios.
+
+;; Other features are: divert autocompletion and links to headers and
+;; labels; an `ink-play' command to playtest your story from Emacs
+;; (bound to C-c C-c by default); an outline similar to org-mode's;
+;; error reporting using flycheck; a collection of YASnippet snippets.
 
 ;;; Code:
+
 (require 'rx)
 (require 'comint)
 (require 'thingatpt)
