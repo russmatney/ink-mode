@@ -6,11 +6,14 @@ language for writing interactive fiction developed by [[https://www.inklestudios
 ** Features
 - syntax highlighting
 - automatic indentation
-- jump to link inside an Ink file by clicking or =C-c C-o=
+- autocomplete divert links with =completion-at-point= (=M-<TAB>= or
+  =C-M-i=)
+- jump to link inside an Ink file by clicking it or =C-c C-o= (links
+  between Ink files are not supported)
 - command to playtest the game from Emacs: =C-c C-c=
   - start the game at a given knot or stitch with =C-c C-p=
-- outline: fold knots and stitches as in org-mode, with =TAB= and
-  =S-TAB=
+- outline: fold knots and stitches as in org-mode, with =<TAB>= and
+  =S-<TAB>=
 - error reporting using flycheck
 - a collection of YASnippet snippets for Ink
 
@@ -18,6 +21,7 @@ language for writing interactive fiction developed by [[https://www.inklestudios
 Add =ink-mode.el= to your load-path then add ~(require 'ink-mode)~ to
 your =init.el=. If you're a [[https://github.com/jwiegley/use-package][use-package]] user, add this instead of
 requiring ink-mode:
+
 #+BEGIN_SRC emacs-lisp
   (use-package ink-mode
     :mode "\\.ink\\'")
