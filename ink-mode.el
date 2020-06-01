@@ -7,8 +7,7 @@
 ;;         Damien Picard
 ;; Maintainer: Damien Picard
 ;; URL: http://github.com/Kungsgeten/ink-mode
-;; Version: 0.2
-;; Package-Version: 20200601
+;; Version: 0.2.0
 ;; Keywords: languages, wp, hypermedia
 ;; Package-Requires: ((emacs "25.1"))
 
