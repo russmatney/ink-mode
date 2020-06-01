@@ -28,7 +28,7 @@ requiring ink-mode:
 #+END_SRC
 
 To install the snippets, add the snippets directory to
-`yas-snippet-dirs` in your init file. Please refer to the [[https://github.com/joaotavora/yasnippet#where-are-the-snippets][YASnippet
+=yas-snippet-dirs= in your init file. Please refer to the [[https://github.com/joaotavora/yasnippet#where-are-the-snippets][YASnippet
 documentation]].
 
 ** License
