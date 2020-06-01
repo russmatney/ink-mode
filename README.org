@@ -1,4 +1,5 @@
-* =ink-mode.el=
+* ink-mode
+[[https://melpa.org/#/ink-mode][file:https://melpa.org/packages/ink-mode-badge.svg]]
 
 =ink-mode= is an Emacs major mode for [[https://www.inklestudios.com/ink/][Ink]], an open-source scripting
 language for writing interactive fiction developed by [[https://www.inklestudios.com/ink/][Inkle Studios]].
