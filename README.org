@@ -15,7 +15,7 @@ language for writing interactive fiction developed by [[https://www.inklestudios
   - start the game at a given knot or stitch with =C-c C-p=
 - outline: fold knots and stitches as in org-mode, with =<TAB>= and
   =S-<TAB>=
-- error reporting using flycheck
+- error reporting using flymake
 - a collection of YASnippet snippets for Ink
 
 ** Installing
@@ -31,6 +31,17 @@ requiring ink-mode:
 To install the snippets, add the snippets directory to
 =yas-snippet-dirs= in your init file. Please refer to the [[https://github.com/joaotavora/yasnippet#where-are-the-snippets][YASnippet
 documentation]].
+
+** Configuration
+
+#+BEGIN_SRC emacs-lisp
+  ;; Path to the Inklecate binary, used to playtest
+  ;; and to check for errors
+  (setq ink-inklecate-path "/usr/bin/inklecate")
+
+  ;; Enable flymake (error reporting)
+  (add-hook 'ink-mode-hook 'flymake-mode)
+#+END_SRC
 
 ** License
 This program is free software: you can redistribute it and/or modify
