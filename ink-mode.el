@@ -453,18 +453,18 @@ keyword."
 
 (defun ink-indent-line ()
   "Indent current line of Ink code."
-  ;; The follow-indentation-p trick was taken from python-mode.el
-  (let ((follow-indentation-p
-         ;; Check if point is within indentation.
-         (and (<= (line-beginning-position) (point))
-              (>= (+ (line-beginning-position)
-                     (current-indentation))
-                  (point)))))
-    (save-excursion
-      (indent-line-to (max 0
-                           (* (ink-calculate-indentation)
-                              tab-width))))
-    (ink-indent-choices)
+  (save-excursion
+    (indent-line-to (max 0 (ink-calculate-indentation)))
+    (ink-indent-choices))
+  (let* ((actual-indentation
+          (save-excursion
+            (goto-char (line-beginning-position))
+            (search-forward-regexp "[^[:space:]]")
+            (- (point) 1)))
+         (follow-indentation-p
+          ;; Check if point is within indentation.
+          (>= actual-indentation
+              (point))))
     (when follow-indentation-p (back-to-indentation))))
 
 (defun ink-indent-choices ()
