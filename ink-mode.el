@@ -174,7 +174,7 @@ Return its position."
 (defun ink-find-label (title-list &optional start end)
   "Find a label matching TITLE-LIST in the buffer.
 Return its position.
-TITLE-LIST consists of one two three elements, giving four possibilities:
+TITLE-LIST consists of one to three elements, giving four possibilities:
 \(label stitch knot\)
 \(label stitch\)
 \(label knot\)
@@ -398,7 +398,7 @@ keyword."
     ;; Choices
     ("^\\s-*\\([*+]\\s-*\\)+" . font-lock-type-face)
 
-    ;; Ties
+    ;; Gathers
     ("^\\s-*\\(\\(?:\\s-*-\\)+\\)\\(?:[^>]\\|$\\)" 1 font-lock-type-face)
 
     ;; Keywords at beginning of line
@@ -439,7 +439,7 @@ keyword."
 ;;; Indentation
 
 (defun ink-count-choices ()
-  "Return number of choices or ties in line."
+  "Return number of choices or gathers in line."
   (interactive)
   (let ((choices 0))
     (save-excursion
@@ -468,7 +468,7 @@ keyword."
     (when follow-indentation-p (back-to-indentation))))
 
 (defcustom ink-indent-choices-with-spaces nil
-  "If non-nil, force using spaces between choices and ties.
+  "If non-nil, force using spaces between choices and gathers.
 You'd get something like:
 
 -   I looked at Monsieur Fogg
@@ -497,7 +497,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
     (make-string (max 0 (- tab-width 1)) ? )))
 
 (defun ink-indent-choices ()
-  "Indent choices and ties: add indentations between symbols."
+  "Indent choices and gathers: add indentations between symbols."
   (interactive)
   (save-excursion
     (beginning-of-line)
@@ -692,7 +692,7 @@ Closing brackets dedent."
       (setq cur-indent (* tab-width (ink-count-choices)))
       (setq indented t))
 
-     ;; Tie -
+     ;; Gather -
      ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
            (not (looking-at ".*?\\*/"))) ;; comments
       (setq cur-indent (* tab-width (- (ink-count-choices) 1)))
@@ -700,7 +700,7 @@ Closing brackets dedent."
 
     (when (not indented)
       (save-excursion
-        ;; If not choice, tie, knot, stitch or first line
+        ;; If not choice, gather, knot, stitch or first line
         (if (looking-at ink-regex-comment)
             ;; Comment // or TODO: look down until we find
             ;; something which isn't a comment, then find
@@ -727,7 +727,7 @@ Closing brackets dedent."
             (setq cur-indent
                   (ink-calculate-line-indentation (ink-count-choices) nil))
             (setq indented t))
-           ;; Tie -
+           ;; Gather -
            ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
                  (not (looking-at ".*?\\*/"))
                  (not (looking-at ".*:")))
