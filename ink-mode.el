@@ -174,7 +174,7 @@ Return its position."
 (defun ink-find-label (title-list &optional start end)
   "Find a label matching TITLE-LIST in the buffer.
 Return its position.
-TITLE-LIST consists of one two three elements, giving four possiblities:
+TITLE-LIST consists of one two three elements, giving four possibilities:
 \(label stitch knot\)
 \(label stitch\)
 \(label knot\)
@@ -467,6 +467,35 @@ keyword."
               (point))))
     (when follow-indentation-p (back-to-indentation))))
 
+(defcustom ink-indent-choices-with-spaces nil
+  "If non-nil, force using spaces between choices and ties.
+You'd get something like:
+
+-   I looked at Monsieur Fogg
+    *   ... and I could contain myself no longer.
+        'What is the purpose of our journey, Monsieur?'
+        'A wager,' he replied.
+        * *   'A wager!'[] I returned.
+              He nodded.
+            * * *   'But surely that is foolishness!'
+
+Otherwise, use the setting of `indent-tabs-mode', which may give:
+
+-   I looked at Monsieur Fogg
+    *   ... and I could contain myself no longer.
+        'What is the purpose of our journey, Monsieur?'
+        'A wager,' he replied.
+        *   *   'A wager!'[] I returned.
+                He nodded.
+            *   *   *   'But surely that is foolishness!'"
+  :group 'ink)
+
+(defun ink-get-tab-string ()
+  "Get the string to insert as tabs depending on `indent-tabs-mode'."
+  (if indent-tabs-mode
+      "\t"
+    (make-string (max 0 (- tab-width 1)) ? )))
+
 (defun ink-indent-choices ()
   "Indent choices and ties: add indentations between symbols."
   (interactive)
@@ -487,14 +516,47 @@ keyword."
                    (setq found-not-choice t))))
           (unless found-divert
             (setq replacement-string
-                  (if indent-tabs-mode
-                      "\t"
-                    (make-string (max 0 (- tab-width 1)) ? )))
+                  (cond (ink-indent-choices-with-spaces
+                         (if found-not-choice
+                             (ink-get-tab-string)
+                           " "))
+                        (indent-tabs-mode
+                         "\t")
+                        (t
+                         (ink-get-tab-string))))
             ;; Compare string to be replaced with replacement, and do
             ;; it only if different. This avoid making changes which
             ;; disable auto-complete.
             (when (not (equal replacement-string (match-string-no-properties 2)))
               (replace-match replacement-string nil nil nil 2))))))))
+
+(defun ink-calculate-line-indentation (choice-level is-tie)
+  "Calculate indentation for normal lines.
+Those ligns are aligned to ties or choices, depending on IS-TIE.
+This is split into two parts: before and after the first char.
+The before part is easy: it's the number of chars (CHOICE-LEVEL)
+* the tab width (-1 tab for ties, which should be indented less
+than choices to signify they're joining back the flow of the
+story.)
+
+The part after (`choice-indent') depends on whether the chars are
+separated by single spaces (`ink-indent-choices-with-spaces') or
+by full tabs; on whether tabs or spaces are used; and on the tab
+width."
+  ;; Part after first char
+  (let ((choice-indent
+         (if ink-indent-choices-with-spaces
+             (if indent-tabs-mode
+                 (* tab-width
+                    (ceiling (/ (* choice-level 2.0)
+                                tab-width)))
+               (- (+ tab-width (* choice-level 2))
+                  2))
+           (* choice-level tab-width))))
+    ;; Part before first char
+    (if is-tie
+        (+ choice-indent (* (- choice-level 1) tab-width))
+      (+ choice-indent (* choice-level tab-width)))))
 
 (defun ink-calculate-bracket-difference ()
   "Count the difference between opening and closing brackets."
@@ -617,24 +679,23 @@ Closing brackets dedent."
       (setq indented t))
 
     (when (not indented)
-      (setq bracket-level (length (ink-calculate-bracket-indentation))))
+      (setq bracket-level (* tab-width (length (ink-calculate-bracket-indentation)))))
 
     (cond
      ;; Empty lines
      ((looking-at "^\\s-*$")
-      (setq cur-indent 0)
       (setq indented t))
 
      ;; Choice * +
      ((and (looking-at "^\\s-*[*+]")
            (not (looking-at ".*?\\*/")))
-      (setq cur-indent (ink-count-choices))
+      (setq cur-indent (* tab-width (ink-count-choices)))
       (setq indented t))
 
      ;; Tie -
      ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
            (not (looking-at ".*?\\*/"))) ;; comments
-      (setq cur-indent (- (ink-count-choices) 1))
+      (setq cur-indent (* tab-width (- (ink-count-choices) 1)))
       (setq indented t)))
 
     (when (not indented)
@@ -663,17 +724,18 @@ Closing brackets dedent."
           (cond
            ;; Choice * +
            ((looking-at "^\\s-*[*+]")
-            (setq cur-indent (* (ink-count-choices) 2))
+            (setq cur-indent
+                  (ink-calculate-line-indentation (ink-count-choices) nil))
             (setq indented t))
            ;; Tie -
            ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
                  (not (looking-at ".*?\\*/"))
                  (not (looking-at ".*:")))
-            (setq cur-indent (- (* (ink-count-choices) 2) 1))
+            (setq cur-indent
+                  (ink-calculate-line-indentation (ink-count-choices) t))
             (setq indented t))
            ;; Condition - ... :
            ((looking-at "^\\s-*-.*:")
-            (setq cur-indent 0)
             (setq indented t))
            ;; Closing brackets: skip them
            ((and (looking-at ".*}\\s-*$")
