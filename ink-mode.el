@@ -6,7 +6,7 @@
 ;; Author: Erik Sjöstrand
 ;;         Damien Picard
 ;; Maintainer: Damien Picard
-;; URL: http://github.com/Kungsgeten/ink-mode
+;; URL: https://github.com/Kungsgeten/ink-mode
 ;; Version: 0.3.0
 ;; Keywords: languages, wp, hypermedia
 ;; Package-Requires: ((emacs "26.1"))
@@ -49,7 +49,15 @@
 
 (defgroup ink nil
   "Major mode for writing interactive fiction in Ink."
+  :link '(url-link :tag "GitHub" "https://github.com/Kungsgeten/ink-mode")
+  :link '(info-link "(WritingWithInk)")
   :group 'languages)
+
+(defgroup ink-faces nil
+  "Faces for the Ink interactive fiction language."
+  :link '(custom-group-link "ink")
+  :group 'ink
+  :group 'faces)
 
 (defvar ink-mode-hook nil)
 
