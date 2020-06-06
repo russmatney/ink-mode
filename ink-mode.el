@@ -1101,6 +1101,27 @@ Completion is only provided for diverts."
            (lambda (_) (ink-get-headers-and-labels))))))
 
 
+;; Snippets -- taken from pony-mode.el
+
+(defcustom ink-snippet-dir (expand-file-name
+                            (concat (file-name-directory (or load-file-name default-directory))
+                                    "./snippets"))
+  "Directory in which to locate Yasnippet snippets for Ink Mode"
+  :group 'ink
+  :type 'string)
+
+;;;###autoload
+(defun ink-load-snippets()
+  "Load snippets if yasnippet installed and ink-snippet-dir is set"
+  (interactive)
+  (when ink-snippet-dir
+    (cond
+     ((fboundp 'yas-load-directory)
+      (yas-load-directory ink-snippet-dir))
+     ((fboundp 'yas/load-directory)
+      (yas/load-directory ink-snippet-dir)))))
+
+
 ;;; Mode Definition
 
 ;;;###autoload
@@ -1133,7 +1154,11 @@ Completion is only provided for diverts."
   (add-to-invisibility-spec '(outline . t))
 
   ;; Flymake
-  (add-hook 'flymake-diagnostic-functions 'ink-flymake nil t))
+  (add-hook 'flymake-diagnostic-functions 'ink-flymake nil t)
+
+  ;; Snippets
+  (ink-load-snippets)
+  )
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ink\\'" . ink-mode))
