@@ -438,35 +438,6 @@ keyword."
 
 ;;; Indentation
 
-(defun ink-count-choices ()
-  "Return number of choices or gathers in line."
-  (interactive)
-  (let ((choices 0))
-    (save-excursion
-      (beginning-of-line)
-      (re-search-forward
-       "\\(?1:\\(?:[*+-]\\s-*\\)+?\\)\\s-*\\(?:->\\)?\\s-*\\([^*+-]\\|$\\)"
-       (line-end-position) t)
-      (if (match-beginning 0)
-          (setq choices (count-matches "\\([*+-]\\)" (line-beginning-position) (match-end 1)))))
-    choices))
-
-(defun ink-indent-line ()
-  "Indent current line of Ink code."
-  (save-excursion
-    (indent-line-to (max 0 (ink-calculate-indentation)))
-    (ink-indent-choices))
-  (let* ((actual-indentation
-          (save-excursion
-            (goto-char (line-beginning-position))
-            (search-forward-regexp "[^[:space:]]")
-            (- (point) 1)))
-         (follow-indentation-p
-          ;; Check if point is within indentation.
-          (>= actual-indentation
-              (point))))
-    (when follow-indentation-p (back-to-indentation))))
-
 (defcustom ink-indent-choices-with-spaces nil
   "If non-nil, force using spaces between choices and gathers.
 You'd get something like:
@@ -490,6 +461,35 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
             *   *   *   'But surely that is foolishness!'"
   :group 'ink)
 
+(defun ink-indent-line ()
+  "Indent current line of Ink code."
+  (save-excursion
+    (indent-line-to (max 0 (ink-calculate-indentation)))
+    (ink-indent-choices))
+  (let* ((actual-indentation
+          (save-excursion
+            (goto-char (line-beginning-position))
+            (search-forward-regexp "[^[:space:]]")
+            (- (point) 1)))
+         (follow-indentation-p
+          ;; Check if point is within indentation.
+          (>= actual-indentation
+              (point))))
+    (when follow-indentation-p (back-to-indentation))))
+
+(defun ink-count-choices ()
+  "Return number of choices or gathers in line."
+  (interactive)
+  (let ((choices 0))
+    (save-excursion
+      (beginning-of-line)
+      (re-search-forward
+       "\\(?1:\\(?:[*+-]\\s-*\\)+?\\)\\s-*\\(?:->\\)?\\s-*\\([^*+-]\\|$\\)"
+       (line-end-position) t)
+      (if (match-beginning 0)
+          (setq choices (count-matches "\\([*+-]\\)" (line-beginning-position) (match-end 1)))))
+    choices))
+
 (defun ink-get-tab-string ()
   "Get the string to insert as tabs depending on `indent-tabs-mode'."
   (if indent-tabs-mode
@@ -502,6 +502,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
   (save-excursion
     (beginning-of-line)
     (when (and (looking-at "^\\s-*[*+\\-]")
+               ;; (not (looking-at "^\\s-*-.*:")) ;; Conditions
                (not (looking-at ".*\\*/"))) ;; Comments
       (let (found-not-choice found-divert replacement-string)
         (while (and (not found-not-choice)
@@ -530,34 +531,6 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
             (when (not (equal replacement-string (match-string-no-properties 2)))
               (replace-match replacement-string nil nil nil 2))))))))
 
-(defun ink-calculate-line-indentation (choice-level is-tie)
-  "Calculate indentation for normal lines.
-Those ligns are aligned to ties or choices, depending on IS-TIE.
-This is split into two parts: before and after the first char.
-The before part is easy: it's the number of chars (CHOICE-LEVEL)
-* the tab width (-1 tab for ties, which should be indented less
-than choices to signify they're joining back the flow of the
-story.)
-
-The part after (`choice-indent') depends on whether the chars are
-separated by single spaces (`ink-indent-choices-with-spaces') or
-by full tabs; on whether tabs or spaces are used; and on the tab
-width."
-  ;; Part after first char
-  (let ((choice-indent
-         (if ink-indent-choices-with-spaces
-             (if indent-tabs-mode
-                 (* tab-width
-                    (ceiling (/ (* choice-level 2.0)
-                                tab-width)))
-               (- (+ tab-width (* choice-level 2))
-                  2))
-           (* choice-level tab-width))))
-    ;; Part before first char
-    (if is-tie
-        (+ choice-indent (* (- choice-level 1) tab-width))
-      (+ choice-indent (* choice-level tab-width)))))
-
 (defun ink-calculate-bracket-difference ()
   "Count the difference between opening and closing brackets."
   (-
@@ -570,87 +543,37 @@ width."
     (line-beginning-position)
     (line-end-position))))
 
-(defun ink-calculate-bracket-indentation ()
-  "Find the level of bracket and condition blocks.
-Opening brackets indent, as do conditions.
-Closing brackets dedent."
-  (let (
-        (bracket-difference 0)
-        (indentation-list (list))
-        (start-pos) (on-last-line)
-        looking-at-opening looking-at-closing)
-    (save-excursion
-      (beginning-of-line)
-      (setq start-pos (point))
-      ;; Go back to header or buffer start
-      (or
-       (ignore-errors (outline-back-to-heading t))
-       (goto-char (point-min)))
-
-      (while (not on-last-line)
-        ;; Exit condition: on starting line
-        (when (= (point)
-                 start-pos)
-          (setq on-last-line t))
-
-        (setq
-         looking-at-opening (looking-at "^\\s-*{.*")
-         looking-at-closing (looking-at ".*}.*$"))
-
-        (when (or
-               looking-at-opening
-               looking-at-closing)
-          (setq bracket-difference (ink-calculate-bracket-difference)))
-
-        ;; Increase indent level on opening bracket
-        (when
-            (and
-             (> bracket-difference 0)
-             looking-at-opening)
-          (unless on-last-line
-            (push 'b indentation-list)))
-
-        ;; Increase indent on condition
-        (when (looking-at "^\\s-*-.*:\\s-*$")
-          (let (previous-indent)
-            (setq previous-indent (nth 0 indentation-list))
-            (if on-last-line
-                (when (eq previous-indent 'c)
-                  (pop indentation-list))
-              (unless (eq previous-indent 'c)
-                (push 'c indentation-list)))))
-
-        ;; Decrease indent level on closing bracket
-        (when
-            (and
-             (< bracket-difference 0)
-             looking-at-closing)
-
-          (let (previous-indent)
-            (setq previous-indent (nth 0 indentation-list))
-            ;; Dedent if previous indent was a bracket in a list
-            (when (eq previous-indent 'c)
-              ;; Check whether next line also opens a bracket, in which case
-              ;; don't dedent yet
-              (save-excursion
-                (forward-line 1)
-                (unless (looking-at "^\\s-*{.*")
-                  (pop indentation-list))))
-            (pop indentation-list)))
-
-        (forward-line 1)))
-    indentation-list))
-
 (defun ink-calculate-indentation ()
   "Find indent level at point."
-  (beginning-of-line)
-  (let ((indented nil) (cur-indent 0)
-        (bracket-level 0)
-        start-pos)
-    (setq start-pos (point))
+  (let (indented
+        (bracket-difference 0)
+        (indentation-list (list))
+        (indentation 0)
+        (choice-indentation 0)
+        (start-pos) (on-last-line)
+        looking-at-opening looking-at-closing
+        comment-start comment-end)
 
-    ;; Multiline comments
-    (let (comment-start comment-end)
+    (save-excursion
+      ;; Indent comments as the first non-comment line below
+      (beginning-of-line)
+
+      ;; Don't indent empty lines
+      (if (looking-at "^\\s-*$")
+          (setq indented t))
+
+      (while (and (not indented)
+                  (or
+                   (looking-at "^\\s-*$")
+                   (looking-at "^\\s-*//")
+                   (looking-at "^\\s-*TODO")))
+        (forward-line 1)
+        (re-search-forward "^\\s-*[^[:space:]]+.*$")
+        (beginning-of-line))
+
+      (setq start-pos (point))
+
+      ;; Multiline comments
       (save-excursion
         (cond ((looking-at ".*\\(?1:/\\*\\)")
                ;; Comment starting at line
@@ -668,87 +591,168 @@ Closing brackets dedent."
                           (progn (re-search-backward "/\\*" nil t)
                                  (point))))
               ;; Inside comment: the end we found is not that of a
-              ;; later comment
+              ;; later comment. Advance to next non-empty, non-comment
+              ;; line.
               (goto-char comment-end)
               (forward-line 1)
-              (setq cur-indent (ink-calculate-indentation))
-              (setq indented t))))))
-
-    ;; Knot or stitch: indent at 0
-    (when (looking-at ink-regex-header)
-      (setq indented t))
-
-    (when (not indented)
-      (setq bracket-level (* tab-width (length (ink-calculate-bracket-indentation)))))
-
-    (cond
-     ;; Empty lines
-     ((looking-at "^\\s-*$")
-      (setq indented t))
-
-     ;; Choice * +
-     ((and (looking-at "^\\s-*[*+]")
-           (not (looking-at ".*?\\*/")))
-      (setq cur-indent (* tab-width (ink-count-choices)))
-      (setq indented t))
-
-     ;; Gather -
-     ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
-           (not (looking-at ".*?\\*/"))) ;; comments
-      (setq cur-indent (* tab-width (- (ink-count-choices) 1)))
-      (setq indented t)))
-
-    (when (not indented)
-      (save-excursion
-        ;; If not choice, gather, knot, stitch or first line
-        (if (looking-at ink-regex-comment)
-            ;; Comment // or TODO: look down until we find
-            ;; something which isn't a comment, then find
-            ;; _that_ indent
-            (let ((found-not-comment nil))
-              (while (not found-not-comment)
+              (while (or (looking-at "^\\s-*$")
+                         (looking-at "^\\s-*//")
+                         (looking-at "^\\s-*TODO"))
                 (forward-line 1)
-                ;; Found something that’s not a comment
-                (when (or (= (line-number-at-pos)
-                             (line-number-at-pos (point-max)))
-                          (not (looking-at ink-regex-comment)))
-                  (setq cur-indent (- (ink-calculate-indentation)
-                                      bracket-level))
-                  (setq indented t)
-                  (setq found-not-comment t)))))
+                (re-search-forward "^\\s-*[^[:space:]]+.*$")
+                (beginning-of-line))
+              ;; (forward-line 1)
+              (setq start-pos (point))))))
 
-        ;; Not a comment
-        (while (not indented)
-          ;; Go up until we find something
-          (forward-line -1)
+      ;; Go back to header or buffer start
+      (or
+       (ignore-errors (outline-back-to-heading t))
+       (goto-char (point-min)))
+
+      (while (and (not indented)
+                  (not on-last-line))
+        ;; Go forward one line until exit condition: on starting line
+        (when (= (point)
+                 start-pos)
+          (setq on-last-line t))
+
+        ;; Calculate the difference betweeen the numbers of opening
+        ;; and closing brackets
+        (when (looking-at ".*[{}]")
+          (setq bracket-difference (ink-calculate-bracket-difference)))
+
+        (cond
+         ;; At header; only useful for multiline comments,
+         ;; which look down
+         ((looking-at ink-regex-header)
+          (setq indentation-list '()))
+
+         ;; Conditions inside brackets - ...:
+         ((and (looking-at "^\\s-*-.*:\\s-*")
+               (or
+                (seq-contains indentation-list 'bracket)
+                (seq-contains indentation-list 'bracket-cond)))
+          ;; Pop until previous bracket
+          (while (not (or (eq 'bracket (nth 0 indentation-list))
+                          (eq 'bracket-cond (nth 0 indentation-list))))
+            (pop indentation-list))
           (cond
-           ;; Choice * +
-           ((looking-at "^\\s-*[*+]")
-            (setq cur-indent
-                  (ink-calculate-line-indentation (ink-count-choices) nil))
-            (setq indented t))
-           ;; Gather -
-           ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
-                 (not (looking-at ".*?\\*/"))
-                 (not (looking-at ".*:")))
-            (setq cur-indent
-                  (ink-calculate-line-indentation (ink-count-choices) t))
-            (setq indented t))
-           ;; Condition - ... :
-           ((looking-at "^\\s-*-.*:")
-            (setq indented t))
-           ;; Closing brackets: skip them
-           ((and (looking-at ".*}\\s-*$")
-                 (not (looking-at "^\\s-*{")))
-            (beginning-of-line)
-            ;; Check whether line matching bracket was a condition
-            (search-forward "}")
-            (backward-list 1))
-           ((or (bobp) (looking-at "^\\s-*="))
-            ;; First line of buffer, knot or stitch
-            (setq indented t))))))
+           ;; If inside bracket with condition, keep same indentation
+           ((eq 'bracket-cond (nth 0 indentation-list))
+            (pop indentation-list)
+            (unless on-last-line
+              (push 'bracket-cond indentation-list)))
+           ;; If inside simple bracket, add one indentation
+           ((eq 'bracket (nth 0 indentation-list))
+            (unless on-last-line
+              (push 'cond indentation-list)))))
 
-    (+ cur-indent bracket-level)))
+         ;; Choices * +
+         ((looking-at "^\\s-*[*+]")
+          ;; (not (looking-at ".*?\\*/"))) ;; comments
+          (while (or (eq 'choice (nth 0 indentation-list))
+                     (eq 'gather (nth 0 indentation-list)))
+            (pop indentation-list))
+          (setq indentation-list (nconc (make-list (ink-count-choices) 'choice)
+                                        indentation-list)))
+
+         ;; Gathers -
+         ((and (looking-at "^\\s-*\\(-[^>]\\|-$\\)")
+               (not (looking-at ".*?\\*/"))) ;; comments
+          (while (or (eq 'choice (nth 0 indentation-list))
+                     (eq 'gather (nth 0 indentation-list)))
+            (pop indentation-list))
+          (setq indentation-list (nconc (make-list (ink-count-choices) 'gather)
+                                        indentation-list)))
+
+         ;; Increase indent on opening bracket with condition
+         ((and
+           (> bracket-difference 0)
+           (looking-at "^\\s-*{\\s-*.*?:"))
+          (unless on-last-line
+            (push 'bracket-cond indentation-list)))
+
+         ;; Decrease indent on closing bracket
+         ((and (looking-at ".*[{}]")
+               (< bracket-difference 0))
+          (while (and (not (or (eq 'bracket (nth 0 indentation-list))
+                               (eq 'bracket-cond (nth 0 indentation-list))))
+                      (> (length indentation-list) 0))
+            (pop indentation-list))
+          (when (> (length indentation-list) 0)
+            (pop indentation-list))))
+
+        ;; Increase indent on opening bracket
+        (when (and
+               (looking-at ".*{")
+               (> bracket-difference 0)
+               (not (looking-at "^\\s-*{.*?:")) ;; already addressed
+               (not on-last-line))
+          (push 'bracket indentation-list))
+
+        (forward-line 1))
+
+      ;; Add up indentations from list
+      (goto-char start-pos)
+      ;; Reverse list, because each level may depend on the
+      ;; previous ones
+      (setq indentation-list (reverse indentation-list))
+      (let (element value)
+        ;; pop each level in turn, then accumulate the indentation
+        ;; depending on element type
+        (while (> (length indentation-list) 0)
+          (setq element (pop indentation-list))
+          (cond
+           ((eq element 'choice)
+            (if (looking-at "^\\s-*[*+]") ;; on choice line
+                (setq value tab-width)
+              (if ink-indent-choices-with-spaces
+                  (setq value (ink-get-choice-indentation
+                               element indentation-list indentation))
+                (setq value (* 2 tab-width)))))
+
+           ((eq element 'gather)
+            (if (looking-at "^\\s-*-") ;; on gather line
+                (setq value tab-width)
+              (if ink-indent-choices-with-spaces
+                  (setq value (ink-get-choice-indentation
+                               element indentation-list indentation))
+                (setq value (* 2 tab-width))))
+            ;; Cancel last gather, to unindent once
+            (when (not (eq element
+                           (nth 0 indentation-list)))
+              (setq value (- value tab-width))))
+
+           ((eq element 'bracket)
+            (setq value tab-width))
+           ((eq element 'bracket-cond)
+            (setq value tab-width))
+           ((eq element 'cond)
+            (setq value tab-width)))
+          (when value
+            (setq indentation (+ indentation value))))))
+    indentation))
+
+(defun ink-get-choice-indentation (element indentation-list indentation)
+  (let (value)
+    (if ink-indent-choices-with-spaces
+        (if (eq element (nth 0 indentation-list))
+            ;; all but last elements
+            (setq value (+ 2 tab-width))
+
+          ;; last element
+          (if indent-tabs-mode
+              ;; find the closest tab, depending on current
+              ;; indentation
+              (setq value
+                    (- (* tab-width
+                          (ceiling (/ (+ 2.0 tab-width
+                                         indentation)
+                                      tab-width)))
+                       indentation))
+            (setq value (* 2 tab-width))))
+      (setq value (* 2 tab-width)))
+    value))
 
 
 ;;; Ink-play
