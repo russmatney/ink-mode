@@ -1127,7 +1127,7 @@ Completion is only provided for diverts."
 
 ;;;###autoload
 (defun ink-load-snippets()
-  "Load snippets if yasnippet installed and ink-snippet-dir is set."
+  "Load snippets if yasnippet installed and `ink-snippet-dir' is set."
   (interactive)
   (when ink-snippet-dir
     (cond
