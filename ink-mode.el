@@ -45,6 +45,7 @@
 (require 'subr-x)
 (require 'easymenu)
 (require 'flymake)
+(require 'seq)
 
 (defgroup ink nil
   "Major mode for writing interactive fiction in Ink."
@@ -459,7 +460,8 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
         *   *   'A wager!'[] I returned.
                 He nodded.
             *   *   *   'But surely that is foolishness!'"
-  :group 'ink)
+  :group 'ink
+  :type 'boolean)
 
 (defun ink-indent-line ()
   "Indent current line of Ink code."
@@ -549,9 +551,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
         (bracket-difference 0)
         (indentation-list (list))
         (indentation 0)
-        (choice-indentation 0)
         (start-pos) (on-last-line)
-        looking-at-opening looking-at-closing
         comment-start comment-end)
 
     (save-excursion
@@ -707,7 +707,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
             (if (looking-at "^\\s-*[*+]") ;; on choice line
                 (setq value tab-width)
               (if ink-indent-choices-with-spaces
-                  (setq value (ink-get-choice-indentation
+                  (setq value (ink-calculate-choice-indentation
                                element indentation-list indentation))
                 (setq value (* 2 tab-width)))))
 
@@ -715,7 +715,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
             (if (looking-at "^\\s-*-") ;; on gather line
                 (setq value tab-width)
               (if ink-indent-choices-with-spaces
-                  (setq value (ink-get-choice-indentation
+                  (setq value (ink-calculate-choice-indentation
                                element indentation-list indentation))
                 (setq value (* 2 tab-width))))
             ;; Cancel last gather, to unindent once
@@ -733,13 +733,16 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
             (setq indentation (+ indentation value))))))
     indentation))
 
-(defun ink-get-choice-indentation (element indentation-list indentation)
+(defun ink-calculate-choice-indentation (element indentation-list indentation)
+  "Get the number of columns to indent choices and gathers.
+This depends on previous indentation, and settings. ELEMENT is
+the current element in the INDENTATION-LIST for the lign to
+indent. INDENTATION is the current sum."
   (let (value)
     (if ink-indent-choices-with-spaces
         (if (eq element (nth 0 indentation-list))
             ;; all but last elements
             (setq value (+ 2 tab-width))
-
           ;; last element
           (if indent-tabs-mode
               ;; find the closest tab, depending on current
@@ -1110,13 +1113,13 @@ Completion is only provided for diverts."
 (defcustom ink-snippet-dir (expand-file-name
                             (concat (file-name-directory (or load-file-name default-directory))
                                     "./snippets"))
-  "Directory in which to locate Yasnippet snippets for Ink Mode"
+  "Directory in which to locate Yasnippet snippets for Ink Mode."
   :group 'ink
   :type 'string)
 
 ;;;###autoload
 (defun ink-load-snippets()
-  "Load snippets if yasnippet installed and ink-snippet-dir is set"
+  "Load snippets if yasnippet installed and ink-snippet-dir is set."
   (interactive)
   (when ink-snippet-dir
     (cond
@@ -1161,8 +1164,7 @@ Completion is only provided for diverts."
   (add-hook 'flymake-diagnostic-functions 'ink-flymake nil t)
 
   ;; Snippets
-  (ink-load-snippets)
-  )
+  (ink-load-snippets))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ink\\'" . ink-mode))
