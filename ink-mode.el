@@ -721,7 +721,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
                 (setq value (* 2 tab-width)))))
 
            ((eq element 'gather)
-            (if (looking-at "^\\s-*-") ;; on gather line
+            (if (looking-at "^\\s-*\\(-[^>]\\|-$\\)") ;; on gather line
                 (setq value tab-width)
               (if ink-indent-choices-with-spaces
                   (setq value (ink-calculate-choice-indentation
