@@ -17,6 +17,8 @@ language for writing interactive fiction developed by [[https://www.inklestudios
   =S-<TAB>=
 - error reporting using flymake
 - a collection of YASnippet snippets for Ink
+- includes the [[https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md][Writing with ink]] language manual, which is displayed
+  with =C-c C-h=
 
 ** Installing
 Add =ink-mode.el= to your load-path then add ~(require 'ink-mode)~ to

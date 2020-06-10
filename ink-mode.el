@@ -66,6 +66,7 @@
     (define-key map (kbd "C-c C-c") 'ink-play)
     (define-key map (kbd "C-c C-p") 'ink-play-knot)
     (define-key map (kbd "C-c C-o") 'ink-follow-link-at-point)
+    (define-key map (kbd "C-c C-h") 'ink-display-manual)
     ;; Visibility cycling
     (define-key map (kbd "TAB") 'ink-cycle)
     (define-key map (kbd "<S-iso-lefttab>") 'ink-shifttab)
@@ -1135,6 +1136,13 @@ Completion is only provided for diverts."
       (yas-load-directory ink-snippet-dir))
      ((fboundp 'yas/load-directory)
       (yas/load-directory ink-snippet-dir)))))
+
+
+;;; Help
+
+(defun ink-display-manual ()
+  (interactive)
+  (info-display-manual "WritingWithInk"))
 
 
 ;;; Mode Definition

@@ -34,9 +34,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @end quotation
 @end copying
 
-@dircategory Emacs
+@dircategory Interactive fiction
 @direntry
-* Writing with ink.       Using the ink interactive fiction language.
+* Writing with ink: (WritingWithInk). Using the ink interactive fiction language.
 @end direntry
 
 @finalout
@@ -52,7 +52,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @ifnottex
 @node Top
-@top Writing with Ink
+@top Writing with ink
 
 @strong{ink} is a scripting language built around the idea of marking
 up pure-text with flow in order to produce interactive scripts.
