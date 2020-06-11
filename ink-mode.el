@@ -560,7 +560,7 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
         (bracket-difference 0)
         (indentation-list (list))
         (indentation 0)
-        (start-pos) (on-last-line)
+        start-pos on-last-line
         comment-start comment-end)
 
     (save-excursion
@@ -586,32 +586,31 @@ Otherwise, use the setting of `indent-tabs-mode', which may give:
       (save-excursion
         (cond ((looking-at ".*\\(?1:/\\*\\)")
                ;; Comment starting at line
-               (setq comment-start (match-beginning 1))
-               (setq start-pos (match-end 1)))
+               (setq comment-start (line-beginning-position))
+               (setq start-pos (line-beginning-position)))
               ((re-search-backward "/\\*" nil t)
                ;; Comment before
-               (setq comment-start (point))))
-        (when comment-start
-          (when (re-search-forward "\\*/" nil t)
-            ;; Find end of comment
-            (setq comment-end (point))
-            (when (and (> comment-end start-pos)
-                       (= comment-start
-                          (progn (re-search-backward "/\\*" nil t)
-                                 (point))))
-              ;; Inside comment: the end we found is not that of a
-              ;; later comment. Advance to next non-empty, non-comment
-              ;; line.
-              (goto-char comment-end)
+               (setq comment-start (line-beginning-position))))
+        (when (and comment-start
+                   (re-search-forward "\\*/" nil t))
+          ;; Find end of comment
+          (setq comment-end (point))
+          (when (and (> comment-end start-pos)
+                     (= comment-start
+                        (progn (re-search-backward "/\\*" nil t)
+                               (line-beginning-position))))
+            ;; Inside comment: the end we found is not that of a
+            ;; later comment. Advance to next non-empty, non-comment
+            ;; line.
+            (goto-char comment-end)
+            (forward-line 1)
+            (while (or (looking-at "^\\s-*$")
+                       (looking-at "^\\s-*//")
+                       (looking-at "^\\s-*TODO"))
               (forward-line 1)
-              (while (or (looking-at "^\\s-*$")
-                         (looking-at "^\\s-*//")
-                         (looking-at "^\\s-*TODO"))
-                (forward-line 1)
-                (re-search-forward "^\\s-*[^[:space:]]+.*$")
-                (beginning-of-line))
-              ;; (forward-line 1)
-              (setq start-pos (point))))))
+              (re-search-forward "^\\s-*[^[:space:]]+.*$")
+              (beginning-of-line))
+            (setq start-pos (point)))))
 
       ;; Go back to header or buffer start
       (or
