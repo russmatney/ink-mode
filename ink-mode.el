@@ -773,15 +773,20 @@ indent. INDENTATION is the current sum."
 (defvar ink-play-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-h") 'ink-display-manual)
+    (define-key map (kbd "C-c C-c") 'ink-play)
+    (define-key map (kbd "C-c C-p") 'ink-play-knot)
     map)
-  "Keymap for ink-play mode.")
+  "Keymap for ink-play mode.
+
+`ink-play' and `ink-play-knot' in this mode will re-run the last
+ink-play and ink-play-knot commands in the same buffer.")
 
 (define-derived-mode ink-play-mode comint-mode "Ink-Play"
   "Major mode for `ink-play'.
 
 Derives from comint-mode, adds a few ink bindings.
-Might be expanded to handle restart, rewind, or go-to-choice functionality.
 
+Support `describe-mode' referencing our keymap:
 //{ink-play-mode-map}")
 
 (easy-menu-define ink-play-mode-menu ink-play-mode-map
@@ -801,6 +806,10 @@ Might be expanded to handle restart, rewind, or go-to-choice functionality.
   (interactive)
   (ink-play t))
 
+;; last file-name and knot to support replaying
+(setq ink-last-played-file-name nil)
+(setq ink-last-played-knot nil)
+
 (defun ink-play (&optional go-to-knot)
   "Play the current ink buffer.
 If the GO-TO-KNOT optional argument is non-nil, start at the knot
@@ -808,22 +817,55 @@ or stitch at point. In that case we issue \"-> knot.stitch\" to
 the process, and suppress the beginning output using the comint
 output filter."
   (interactive "P")
-  (let* ((file-name (buffer-file-name))
+  (let* (;; check this ahead of (set-buffer)
+         (in-ink-play-buffer (string= "*Ink*" (buffer-name (current-buffer))))
+
+         ;; if our buffer isn't referring to a real file (eg. *Ink*),
+         ;; use the cached last-file-name
+         (file-name (if in-ink-play-buffer ink-last-played-file-name
+                      (buffer-file-name)))
+
+         ;; needs to run before set-buffer call
+         (knot-name (when go-to-knot
+                      (if in-ink-play-buffer
+                           ;; return the last played knot
+                           ink-last-played-knot
+                           ;; return a knot name if found, nil otherwise
+                           (let ((x (ink-get-knot-name)))
+                             (unless (eq "" x) x)))))
+
          (ink-buffer
-          (if (comint-check-proc "*Ink*")
+          (if (or
+               ;; our process is already running, so this ink-play
+               ;; should just execute inklecate
+               (comint-check-proc "*Ink*")
+               ;; OR we are already in the *Ink* buffer, but the process
+               ;; has finished, so kick it off again
+               in-ink-play-buffer)
               (progn
                 (comint-exec "*Ink*" "Ink" ink-inklecate-path
                              nil `("-p" ,file-name))
                 "*Ink*")
+            ;; no *Ink* buffer yet, need to create it
             (progn
               (let ((new-buffer
                      (make-comint "Ink" ink-inklecate-path nil
                                   "-p" (buffer-file-name))))
                 (set-buffer new-buffer)
                 (ink-play-mode)
-                new-buffer))))
-         (knot-name (ink-get-knot-name)))
-    (switch-to-buffer-other-window ink-buffer)
+                new-buffer)))))
+
+    ;; update the last ink-file/knot attempted (to support 'replaying')
+    (setq ink-last-played-file-name file-name)
+    ;; conditionally update to preserve knot-name across 'full' replays,
+    ;; which would otherwise clear it
+    (when knot-name
+      (setq ink-last-played-knot knot-name))
+
+    ;; only switch window if we're not already focused
+    (unless in-ink-play-buffer
+      (switch-to-buffer-other-window ink-buffer))
+
     (comint-clear-buffer)
     (if (and go-to-knot knot-name)
         (progn
