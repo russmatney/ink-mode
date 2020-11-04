@@ -784,10 +784,7 @@ ink-play and ink-play-knot commands in the same buffer.")
 (define-derived-mode ink-play-mode comint-mode "Ink-Play"
   "Major mode for `ink-play'.
 
-Derives from comint-mode, adds a few ink bindings.
-
-Support `describe-mode' referencing our keymap:
-//{ink-play-mode-map}")
+Derives from comint-mode, adds a few ink bindings.")
 
 (easy-menu-define ink-play-mode-menu ink-play-mode-map
   "Menu for `ink-play-mode'."
