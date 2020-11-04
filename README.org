@@ -41,19 +41,6 @@ requiring ink-mode:
   (add-hook 'ink-mode-hook 'flymake-mode)
 #+END_SRC
 
-** Snippets
-
-See ~snippets/ink-mode/*~ for snippet definitions.
-
-| Snippet             | Key |
-| choice once         | co  |
-| choice sticky       | cs  |
-| condition           | cd  |
-| multiline condition | mlc |
-| divert              | dv  |
-| knot                | kt  |
-| stitch              | st  |
-
 ** License
 This program is free software: you can redistribute it and/or modify
 it under the terms of the [[COPYING][GNU General Public License]] as published by
