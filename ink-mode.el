@@ -810,7 +810,7 @@ the process, and suppress the beginning output using the comint
 output filter."
   (interactive "P")
   (let* (;; check this ahead of (set-buffer)
-         (in-ink-play-buffer (string= "*Ink*" (buffer-name (current-buffer))))
+         (in-ink-play-buffer (equal major-mode 'ink-play-mode))
 
          ;; if our buffer isn't referring to a real file (eg. *Ink*),
          ;; use the cached last-file-name
@@ -820,11 +820,11 @@ output filter."
          ;; needs to run before set-buffer call
          (knot-name (when go-to-knot
                       (if in-ink-play-buffer
-                           ;; return the last played knot
-                           ink-last-played-knot
-                           ;; return a knot name if found, nil otherwise
-                           (let ((x (ink-get-knot-name)))
-                             (unless (eq "" x) x)))))
+                          ;; return the last played knot
+                          ink-last-played-knot
+                        ;; return a knot name if found, nil otherwise
+                        (let ((kn (ink-get-knot-name)))
+                          (unless (string-empty-p kn) kn)))))
 
          (ink-buffer
           (if (or
