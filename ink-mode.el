@@ -786,11 +786,6 @@ ink-play and ink-play-knot commands in the same buffer.")
 
 Derives from comint-mode, adds a few ink bindings.")
 
-(easy-menu-define ink-play-mode-menu ink-play-mode-map
-  "Menu for `ink-play-mode'."
-  '("Ink-Play"
-    ["Open ink manual" ink-display-manual]))
-
 (defcustom ink-inklecate-path (executable-find "inklecate")
   "The path to the Inklecate executable."
   :group 'ink
